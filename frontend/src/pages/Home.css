@@ -1,0 +1,108 @@
+/* Home Page Styling */
+
+.home-container {
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ffafbd, #ffc3a0);
+  color: #222;
+}
+
+/* NAVBAR */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 40px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.nav-links a {
+  margin-left: 20px;
+  text-decoration: none;
+  font-size: 16px;
+  color: #222;
+  font-weight: 500;
+}
+
+.signup-btn {
+  padding: 8px 14px;
+  background: #ff4f81;
+  border-radius: 8px;
+  color: white !important;
+}
+
+.signup-btn:hover {
+  background: #e23f72;
+}
+
+/* HERO SECTION */
+.hero {
+  margin-top: 120px;
+  text-align: center;
+  padding: 0 20px;
+}
+
+.hero h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.hero p {
+  font-size: 20px;
+  max-width: 600px;
+  margin: 0 auto 30px;
+}
+
+.hero-buttons {
+  margin-top: 20px;
+}
+
+.primary-btn, .secondary-btn {
+  text-decoration: none;
+  padding: 12px 22px;
+  border-radius: 10px;
+  margin: 10px;
+  display: inline-block;
+  font-size: 18px;
+  font-weight: bold;
+  transition: 0.3s ease;
+}
+
+.primary-btn {
+  background: #ff2e63;
+  color: white;
+}
+
+.primary-btn:hover {
+  background: #e02655;
+}
+
+.secondary-btn {
+  background: white;
+  color: #222;
+}
+
+.secondary-btn:hover {
+  background: #f2f2f2;
+}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 600px) {
+  .hero h1 {
+    font-size: 32px;
+  }
+
+  .navbar {
+    padding: 15px 20px;
+  }
+
+  .nav-links a {
+    font-size: 14px;
+  }
+}

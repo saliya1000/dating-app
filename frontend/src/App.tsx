@@ -2,6 +2,7 @@ import { Routes, Route, Link } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import Home from "./pages/Home";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Link to="/profile">Profile</Link>
       </nav>
       <Routes>
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<Profile />} />
