@@ -1,20 +1,15 @@
 import express from "express";
-import cors from "cors";
-import pkg from "@prisma/client";
+import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
+import usersRoutes from "./routes/users.js";
+import connectionsRoutes from "./routes/connections.js";
 
-const { PrismaClient } = pkg;
-const prisma = new PrismaClient();
-
+dotenv.config();
 const app = express();
-app.use(cors());
 app.use(express.json());
 
 app.use("/auth", authRoutes);
+app.use("/users", usersRoutes);
+app.use("/connections", connectionsRoutes);
 
-app.get("/", (req, res) => {
-  res.send("Backend is running...");
-});
-
-const PORT = 4000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(3000, () => console.log("Server running on http://localhost:3000"));
