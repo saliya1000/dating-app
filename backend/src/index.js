@@ -14,4 +14,8 @@ app.use("/api/users", usersRoutes);
 app.use("/api/connections", connectionsRoutes);
 app.use("/api/recommendations", recommendationsRoutes);
 
+app.get("/", (_req, res) => {
+  res.json({ status: "ok", message: "Backend is running" });
+});
+
 app.listen(3000, () => console.log("Server running on http://localhost:3000"));

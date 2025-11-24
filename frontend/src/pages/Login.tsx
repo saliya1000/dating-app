@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { loginUser } from "../utils/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -10,6 +10,7 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     const data = await loginUser(email, password);
     if (data.token) {
       localStorage.setItem("token", data.token);
@@ -20,25 +21,41 @@ const Login = () => {
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>Login</h2>
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        /><br/>
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        /><br/>
-        <button type="submit">Login</button>
-      </form>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-    </div>
+    <section className="auth-page">
+      <div className="card auth-card">
+        <h2 className="page-heading">Welcome back</h2>
+        <p className="text-muted">Sign in to continue matching with new connections.</p>
+        <form onSubmit={handleLogin}>
+          <div className="form-field">
+            <label htmlFor="email">Email address</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary btn-full">Login</button>
+        </form>
+        {error && <p className="form-feedback form-feedback--error">{error}</p>}
+        <p className="text-muted" style={{ marginTop: "1rem" }}>
+          New here? <Link to="/register">Create an account</Link>
+        </p>
+      </div>
+    </section>
   );
 };
 

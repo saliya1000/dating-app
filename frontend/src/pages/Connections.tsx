@@ -1,104 +1,131 @@
-import { useEffect, useState } from "react";
-import { fetchMe, fetchConnections, fetchUserProfile, acceptConnection, rejectConnection, disconnectConnection, cancelConnection } from "../utils/api";
+import { useEffect, useMemo, useState } from "react";
+import { fetchMe, fetchConnections, respondToConnection } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 
-interface ConnectionUser {
+interface BasicUser {
   id: number;
-  name: string;
+  username: string;
   profilePic: string | null;
-  status: string; // "connected" | "pending_incoming" | "pending_outgoing"
+  bio?: string | null;
 }
 
-const ConnectionCard = ({ user, onAccept, onReject, onDisconnect, onCancel }:{
-  user: ConnectionUser,
-  onAccept?: () => void,
-  onReject?: () => void,
-  onDisconnect?: () => void,
-  onCancel?: () => void
-}) => (
-  <div className="connection-card" style={{border:"1px solid #ccc",borderRadius:8,padding:16,margin:"16px 0",display:"flex",alignItems:"center",gap:16}}>
-    <img src={user.profilePic || "https://via.placeholder.com/48?text=%F0%9F%91%A4"} alt="Profile" width={48} height={48} style={{borderRadius:'50%'}} />
-    <div style={{flex:1}}>
-      <strong>{user.name}</strong><br/>
-      <small>Status: {user.status.replace('_',' ')}</small>
-    </div>
-    {user.status==="pending_incoming" && (
-      <>
-        <button onClick={onAccept} style={{marginRight:8}}>Accept</button>
-        <button onClick={onReject}>Reject</button>
-      </>
-    )}
-    {user.status==="connected" && (<button onClick={onDisconnect}>Disconnect</button>)}
-    {user.status==="pending_outgoing" && (<button onClick={onCancel}>Cancel</button>)}
-  </div>
-);
+interface ConnectionRecord {
+  id: number;
+  status: string;
+  requesterId: number;
+  recipientId: number;
+  requester: BasicUser;
+  recipient: BasicUser;
+}
 
 const Connections = () => {
-  const [users, setUsers] = useState<ConnectionUser[]>([]);
+  const [me, setMe] = useState<{ id: number } | null>(null);
+  const [records, setRecords] = useState<ConnectionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) { navigate("/login"); return; }
-
-    fetchMe(token).then(me => {
-      if (me.error) { navigate("/login"); return; }
-      fetchConnections(token).then(async (connections: any[]) => {
-        if (!Array.isArray(connections)) { setError("Could not fetch connections."); return; }
-        // { id, status: 'connected' | 'pending_incoming' | 'pending_outgoing' }
-        const users: ConnectionUser[] = [];
-        for (const c of connections) {
-          try {
-            const info = await fetchUserProfile(token, c.id);
-            users.push({
-              id: c.id,
-              name: info.fullName || "?", // fallback
-              profilePic: info.profilePic || null,
-              status: c.status,
-            });
-          } catch { /* skip if error */ }
-        }
-        setUsers(users);
-        setLoading(false);
-      });
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    fetchMe(token).then(user => {
+      if (user?.error) {
+        navigate("/login");
+        return;
+      }
+      setMe({ id: user.id });
+      fetchConnections(token)
+        .then((response) => {
+          if (!Array.isArray(response)) {
+            setError("Unable to fetch connections.");
+            return;
+          }
+          setRecords(response);
+        })
+        .catch(() => setError("Unable to fetch connections."))
+        .finally(() => setLoading(false));
     });
-  }, []);
+  }, [navigate]);
 
-  const updateStatus = (id:number, status:string) => {
-    setUsers(users => users.map(u => u.id !== id ? u : { ...u, status }));
+  const items = useMemo(() => {
+    if (!me) return [];
+    return records.map(record => {
+      const isRequester = record.requesterId === me.id;
+      const counterpart = isRequester ? record.recipient : record.requester;
+      const direction =
+        record.status === "pending"
+          ? (isRequester ? "pending_outgoing" : "pending_incoming")
+          : record.status;
+      return {
+        id: record.id,
+        status: record.status,
+        direction,
+        counterpart,
+      };
+    });
+  }, [records, me]);
+
+  const handleRespond = async (connectionId: number, action: "accept" | "reject") => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    const updated = await respondToConnection(token, connectionId, action);
+    setRecords(prev => prev.map(rec => rec.id === connectionId ? updated : rec));
   };
 
   return (
-    <div style={{padding:"2rem",maxWidth:600,margin:"0 auto"}}>
-      <h2>Connections</h2>
-      {loading && <div>Loading connections...</div>}
-      {error && <div style={{color:"red"}}>{error}</div>}
-      {users.length === 0 && !loading && <div>No connections or requests found.</div>}
-      {users.map(user => (
-        <ConnectionCard
-          key={user.id}
-          user={user}
-          onAccept={user.status==="pending_incoming" ? ()=>{
-            const token = localStorage.getItem("token");
-            if (token) acceptConnection(token, user.id).then(()=>updateStatus(user.id, "connected"));
-          } : undefined}
-          onReject={user.status==="pending_incoming" ? ()=>{
-            const token = localStorage.getItem("token");
-            if (token) rejectConnection(token, user.id).then(()=>updateStatus(user.id, ""));
-          } : undefined}
-          onDisconnect={user.status==="connected" ? ()=>{
-            const token = localStorage.getItem("token");
-            if (token) disconnectConnection(token, user.id).then(()=>updateStatus(user.id, ""));
-          } : undefined}
-          onCancel={user.status==="pending_outgoing" ? ()=>{
-            const token = localStorage.getItem("token");
-            if (token) cancelConnection(token, user.id).then(()=>updateStatus(user.id, ""));
-          } : undefined}
-        />
-      ))}
-    </div>
+    <main className="page-surface">
+      <section className="card">
+        <h2 className="section-heading">Connections</h2>
+        <p className="text-muted">Manage your accepted matches and pending requests.</p>
+        {error && <p className="form-feedback form-feedback--error">{error}</p>}
+        {loading && <p>Loading connections…</p>}
+        {!loading && items.length === 0 && (
+          <div className="empty-state">
+            <h3>No connections yet</h3>
+            <p>Visit the recommendations tab to start meeting people.</p>
+          </div>
+        )}
+        {items.map(item => (
+          <div key={item.id} className="list-card">
+            <img
+              className="avatar"
+              src={item.counterpart.profilePic || "https://via.placeholder.com/56?text=%F0%9F%91%A4"}
+              alt={`${item.counterpart.username} avatar`}
+            />
+            <div className="list-card__content">
+              <strong>{item.counterpart.username}</strong>
+              <p className="connection-meta">
+                {item.direction === "pending_incoming" && "Wants to connect"}
+                {item.direction === "pending_outgoing" && "Request sent"}
+                {item.direction === "accepted" && "Connected"}
+                {item.direction !== "pending_incoming" && item.direction !== "pending_outgoing" && item.direction !== "accepted" && item.direction}
+              </p>
+              <p className="text-muted">{item.counterpart.bio || "No bio yet."}</p>
+            </div>
+            <div className="list-card__actions">
+              {item.direction === "pending_incoming" && (
+                <>
+                  <button className="btn btn-success" onClick={() => handleRespond(item.id, "accept")}>
+                    Accept
+                  </button>
+                  <button className="btn btn-danger" onClick={() => handleRespond(item.id, "reject")}>
+                    Reject
+                  </button>
+                </>
+              )}
+              {item.direction === "pending_outgoing" && <span className="text-muted">Awaiting response…</span>}
+              {item.direction === "accepted" && <span className="text-muted">Connected</span>}
+            </div>
+          </div>
+        ))}
+      </section>
+    </main>
   );
 };
 

@@ -1,99 +1,116 @@
 import { useEffect, useState } from "react";
-import { fetchMe, fetchRecommendations, fetchUserProfile, connectWithUser, dismissRecommendation } from "../utils/api";
+import { fetchMe, fetchRecommendations, sendConnectionRequest } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 
-interface RecUserBasic {
-  id: number;
-  name: string;
+interface Recommendation {
+  userId: number;
+  username: string;
   profilePic: string | null;
-  about: string;
+  bio?: string | null;
+  highlights: string[];
+  score: number;
 }
 
-const RecommendationCard = ({ user, onConnect, onDismiss }: {
-  user: RecUserBasic, onConnect: () => void, onDismiss: () => void
-} ) => (
-  <div className="recommendation-card" style={{border:"1px solid #ddd",borderRadius:8,padding:16,margin:"16px 0",display:"flex",alignItems:"center",gap:16}}>
-    <img 
-      src={user.profilePic || "https://via.placeholder.com/64?text=%F0%9F%91%A4"} 
-      alt="Profile" width={64} height={64} style={{borderRadius: "50%"}} 
-    />
-    <div style={{flex:1}}>
-      <strong>{user.name}</strong><br/>
-      <span style={{fontSize:14, color:"#555"}}>{user.about}</span>
-    </div>
-    <button onClick={onConnect} style={{marginRight:8}}>Connect</button>
-    <button onClick={onDismiss}>Dismiss</button>
-  </div>
-);
-
 const Recommendations = () => {
-  const [me, setMe] = useState<any>(null);
-  const [users, setUsers] = useState<RecUserBasic[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [hidden, setHidden] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [dismissed, setDismissed] = useState<number[]>([]);
+  const [successMsg, setSuccessMsg] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      navigate("/login"); return;
+      navigate("/login");
+      return;
     }
-    fetchMe(token).then(data => {
-      if (data.error) { navigate("/login"); return; }
-      if (!(data.fullName && data.about && data.interests && data.favoriteMusic && data.location)) {
-        navigate("/profile");
+    fetchMe(token).then(me => {
+      if (me?.error) {
+        navigate("/login");
         return;
       }
-      setMe(data);
-      fetchRecommendations(token).then(async ids => {
-        if (!Array.isArray(ids)) return setError("Could not fetch recommendations.");
-        // For each id, fetch user displayable info (excluding email)
-        const recUsers: RecUserBasic[] = [];
-        for (const id of ids) {
-          try {
-            const info = await fetchUserProfile(token, id);
-            recUsers.push({
-              id,
-              name: info.fullName || "?", // fallback
-              profilePic: info.profilePic || null,
-              about: info.about || "..."
-            });
-          } catch { /* skip if error or forbidden */ }
-        }
-        setUsers(recUsers);
-        setLoading(false);
-      });
+      fetchRecommendations(token)
+        .then((data: any[]) => {
+          if (!Array.isArray(data)) {
+            setError("Could not load recommendations yet.");
+            return;
+          }
+          const normalized = data.map(item => ({
+            userId: item.user?.id ?? item.userId,
+            username: item.user?.username ?? "Anonymous",
+            profilePic: item.user?.profilePic ?? null,
+            bio: item.user?.bio ?? item.bio ?? "",
+            highlights: [item.interest1, item.interest2, item.interest3, item.music, item.hobby].filter(Boolean),
+            score: item.score ?? 0,
+          }));
+          setRecommendations(normalized);
+        })
+        .catch(() => setError("Unable to reach the recommendations service."))
+        .finally(() => setLoading(false));
     });
-  }, []);
+  }, [navigate]);
 
-  const handleDismiss = (id:number) => {
-    setDismissed(prev => [...prev, id]);
+  const handleConnect = async (userId: number) => {
+    setSuccessMsg("");
     const token = localStorage.getItem("token");
-    if (token) dismissRecommendation(token, id);
-  };
-  const handleConnect = (id:number) => {
-    const token = localStorage.getItem("token");
-    if (token) connectWithUser(token, id);
-    // Optionally, optimistically hide card or show toast
-    setDismissed(prev => [...prev, id]);
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    await sendConnectionRequest(token, userId);
+    setHidden(prev => [...prev, userId]);
+    setSuccessMsg("Request sent! Check the Connections page for updates.");
   };
 
-  if (loading) return <div style={{padding:"2rem"}}>Loading recommendations...</div>;
-  if (users.filter(u=>!dismissed.includes(u.id)).length === 0)
-    return <div style={{padding:"2rem"}}><h2>No new recommendations!</h2><p>Try updating your profile or check back later.</p></div>;
+  const visible = recommendations.filter(rec => !hidden.includes(rec.userId));
+
+  if (loading) {
+    return <div className="page-surface"><div className="card">Loading recommendations…</div></div>;
+  }
 
   return (
-    <div style={{padding:"2rem",maxWidth:600,margin:"0 auto"}}>
-      <h2>Recommended Connections</h2>
-      {users.filter(u=>!dismissed.includes(u.id)).map(user => (
-        <RecommendationCard key={user.id}
-          user={user}
-          onConnect={()=>handleConnect(user.id)}
-          onDismiss={()=>handleDismiss(user.id)}
-        />
-      ))}
-    </div>
+    <main className="page-surface">
+      <section className="card">
+        <h2 className="section-heading">Recommended connections</h2>
+        <p className="text-muted">Curated matches based on your shared interests.</p>
+        {error && <p className="form-feedback form-feedback--error">{error}</p>}
+        {successMsg && <p className="form-feedback form-feedback--success">{successMsg}</p>}
+        {visible.length === 0 ? (
+          <div className="empty-state">
+            <h3>No new matches right now</h3>
+            <p>Update your interests or check back later for fresh people.</p>
+          </div>
+        ) : (
+          <div className="recommendation-grid">
+            {visible.map(rec => (
+              <article key={rec.userId} className="recommendation-card">
+                <img
+                  className="avatar"
+                  src={rec.profilePic || "https://via.placeholder.com/64?text=%F0%9F%91%A4"}
+                  alt={`${rec.username} avatar`}
+                />
+                <div className="recommendation-copy">
+                  <strong>{rec.username}</strong>
+                  <p className="connection-meta">
+                    Match score: {Math.round((rec.score / 5) * 100) || 0}%
+                  </p>
+                  <p className="text-muted">{rec.bio || "This member hasn’t added a bio yet."}</p>
+                  <div className="badge-row">
+                    {rec.highlights.slice(0, 4).map((highlight, idx) => (
+                      <span className="pill" key={idx}>{highlight}</span>
+                    ))}
+                  </div>
+                </div>
+                <button className="btn btn-primary" onClick={() => handleConnect(rec.userId)}>
+                  Connect
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 };
 

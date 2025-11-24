@@ -1,47 +1,41 @@
-import { useEffect, useState, ChangeEvent } from "react";
-import { fetchMe, updateProfile } from "../utils/api";
+import { useEffect, useState } from "react";
+import { fetchMe, fetchUserBio, updateUserProfile, updateUserBio } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 
 interface UserProfile {
   id: number;
   email: string;
-  fullName: string;
-  about: string;
-  interests: string;
-  favoriteMusic: string;
-  location: string;
-  preferredDistance: number;
+  username: string;
+  bio?: string | null;
   profilePic?: string | null;
 }
 
-const DEFAULT_PROFILE: Omit<UserProfile, "id" | "email"> = {
-  fullName: "",
-  about: "",
-  interests: "",
-  favoriteMusic: "",
-  location: "",
-  preferredDistance: 10,
-  profilePic: null,
-};
+interface UserBio {
+  interest1: string;
+  interest2: string;
+  interest3: string;
+  music: string;
+  hobby: string;
+}
 
-const isProfileComplete = (user?: Partial<UserProfile>) => {
-  if (!user) return false;
-  return (
-    user.fullName?.trim() &&
-    user.about?.trim() &&
-    user.interests?.trim() &&
-    user.favoriteMusic?.trim() &&
-    user.location?.trim()
-  );
+const EMPTY_BIO: UserBio = {
+  interest1: "",
+  interest2: "",
+  interest3: "",
+  music: "",
+  hobby: "",
 };
 
 const Profile = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState(DEFAULT_PROFILE);
+  const [bio, setBio] = useState<UserBio>(EMPTY_BIO);
+  const [basicForm, setBasicForm] = useState({ username: "", bio: "", profilePic: "" });
+  const [bioForm, setBioForm] = useState(EMPTY_BIO);
+  const [loading, setLoading] = useState(true);
+  const [savingBasic, setSavingBasic] = useState(false);
+  const [savingBio, setSavingBio] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [uploadPic, setUploadPic] = useState<File | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,113 +44,164 @@ const Profile = () => {
       navigate("/login");
       return;
     }
-    fetchMe(token).then(data => {
-      if (data.error) {
-        setError(data.error);
-        navigate("/login");
-      } else {
-        setUser(data);
-        setForm({
-          fullName: data.fullName || "",
-          about: data.about || "",
-          interests: data.interests || "",
-          favoriteMusic: data.favoriteMusic || "",
-          location: data.location || "",
-          preferredDistance: data.preferredDistance || 10,
-          profilePic: data.profilePic || null,
+    Promise.all([fetchMe(token), fetchUserBio(token)])
+      .then(([me, meBio]) => {
+        if (me?.error) {
+          setError(me.error);
+          navigate("/login");
+          return;
+        }
+        setUser(me);
+        setBasicForm({
+          username: me.username || "",
+          bio: me.bio || "",
+          profilePic: me.profilePic || "",
         });
-      }
-    });
-  }, []);
+        if (meBio) {
+          setBio(meBio);
+          setBioForm({
+            interest1: meBio.interest1 || "",
+            interest2: meBio.interest2 || "",
+            interest3: meBio.interest3 || "",
+            music: meBio.music || "",
+            hobby: meBio.hobby || "",
+          });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [navigate]);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
-  };
-
-  const handleNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, preferredDistance: Number(e.target.value) });
-  };
-
-  const handlePicChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) setUploadPic(e.target.files[0]);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleBasicSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(""); setMessage("");
+    setError("");
+    setMessage("");
     const token = localStorage.getItem("token");
     if (!token) return;
-    // TODO: add profile pic upload logic if required (API stub for now)
-    const result = await updateProfile(token, { ...form, profilePic: uploadPic });
-    if (result.error) setError(result.error);
-    else { setMessage("Profile updated!"); setUser(result); setEditMode(false); }
+    setSavingBasic(true);
+    const response = await updateUserProfile(token, {
+      username: basicForm.username,
+      bio: basicForm.bio,
+      profilePic: basicForm.profilePic || null,
+    });
+    setSavingBasic(false);
+    if (response?.error) {
+      setError(response.error);
+    } else {
+      setUser(response);
+      setMessage("Profile saved successfully!");
+    }
   };
 
-  if (!user) return <div>Loading...</div>;
+  const handleBioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    setSavingBio(true);
+    const response = await updateUserBio(token, bioForm);
+    setSavingBio(false);
+    if (response?.error) {
+      setError(response.error);
+    } else {
+      setBio(response);
+      setMessage("Interests updated!");
+    }
+  };
 
-  // Show form if incomplete or editing
-  if (!isProfileComplete(user) || editMode) {
-    return (
-      <div style={{padding:"2rem",maxWidth:500}}>
-        <h2>{!isProfileComplete(user) ? "Complete your profile" : "Edit profile"}</h2>
-        <form onSubmit={handleSubmit}>
-          <label>
-            Full Name: <br/>
-            <input name="fullName" value={form.fullName} onChange={handleChange} required />
-          </label><br/><br/>
-          <label>
-            About Me: <br/>
-            <textarea name="about" value={form.about} onChange={handleChange} required rows={3}/>
-          </label><br/><br/>
-          <label>
-            Interests: <br/>
-            <input name="interests" value={form.interests} onChange={handleChange} required placeholder="e.g. cooking, music..." />
-          </label><br/><br/>
-          <label>
-            Favorite Music: <br/>
-            <input name="favoriteMusic" value={form.favoriteMusic} onChange={handleChange} required />
-          </label><br/><br/>
-          <label>
-            Location (city): <br/>
-            <input name="location" value={form.location} onChange={handleChange} required />
-          </label><br/><br/>
-          <label>
-            Preferred Radius (km): <br/>
-            <input name="preferredDistance" type="number" value={form.preferredDistance} onChange={handleNumberChange} min={1} required />
-          </label><br/><br/>
-          <label>
-            Profile Picture: <br/>
-            <input type="file" accept="image/*" onChange={handlePicChange} />
-            {(form.profilePic || user.profilePic) && (
-              <div>
-                <img src={typeof form.profilePic === 'string' ? form.profilePic : user.profilePic} alt="Profile" width={64} height={64}/>
-                <button type="button" onClick={()=>{ setForm({ ...form, profilePic:null }); setUploadPic(null); }}>Remove</button>
+  if (loading) return <div className="page-surface"><div className="card">Loading profile…</div></div>;
+  if (!user) return <div className="page-surface"><div className="card">Unable to load profile.</div></div>;
+
+  const interestChips = [bio.interest1, bio.interest2, bio.interest3, bio.music, bio.hobby].filter(Boolean);
+
+  return (
+    <main className="page-surface">
+      <section className="card">
+        <div className="profile-header">
+          <img
+            className="avatar"
+            src={basicForm.profilePic || "https://via.placeholder.com/64?text=%F0%9F%91%A4"}
+            alt="Avatar"
+          />
+          <div className="profile-meta">
+            <strong>{user.username || "Unnamed"}</strong>
+            <span className="text-muted">{user.email}</span>
+            {interestChips.length > 0 && (
+              <div className="tag-cloud">
+                {interestChips.map((chip, idx) => (
+                  <span key={idx} className="tag">{chip}</span>
+                ))}
               </div>
             )}
-          </label><br/>
-          <button type="submit">Save</button>
-        </form>
-        {error && <p style={{color:"red"}}>{error}</p>}
-        {message && <p style={{color:"green"}}>{message}</p>}
-      </div>
-    );
-  }
+          </div>
+        </div>
 
-  // View mode (profile complete, not editing)
-  return (
-    <div style={{padding:"2rem",maxWidth:500}}>
-      <h2>My Profile</h2>
-      <img src={user.profilePic || "https://via.placeholder.com/64?text=%F0%9F%91%A4"} alt="Profile" width={64} height={64}/>
-      <p><strong>Name:</strong> {user.fullName}</p>
-      <p><strong>About:</strong> {user.about}</p>
-      <p><strong>Interests:</strong> {user.interests}</p>
-      <p><strong>Favorite Music:</strong> {user.favoriteMusic}</p>
-      <p><strong>Location:</strong> {user.location}</p>
-      <p><strong>Preferred Distance:</strong> {user.preferredDistance} km</p>
-      <p><strong>Email:</strong> {user.email}</p>
-      <button onClick={()=>setEditMode(true)}>Edit</button>
-    </div>
+        <form className="split-layout" onSubmit={handleBasicSubmit} style={{ marginTop: "1.25rem" }}>
+          <div className="form-field">
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              name="username"
+              value={basicForm.username}
+              onChange={e => setBasicForm(prev => ({ ...prev, username: e.target.value }))}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="profilePic">Profile picture URL</label>
+            <input
+              id="profilePic"
+              name="profilePic"
+              value={basicForm.profilePic}
+              onChange={e => setBasicForm(prev => ({ ...prev, profilePic: e.target.value }))}
+              placeholder="https://example.com/me.png"
+            />
+          </div>
+          <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+            <label htmlFor="bio">Bio</label>
+            <textarea
+              id="bio"
+              name="bio"
+              value={basicForm.bio}
+              onChange={e => setBasicForm(prev => ({ ...prev, bio: e.target.value }))}
+              rows={4}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={savingBasic}>
+            {savingBasic ? "Saving..." : "Save profile"}
+          </button>
+        </form>
+      </section>
+
+      <section className="card">
+        <h3 className="section-heading">Signature interests</h3>
+        <p className="text-muted">These details power your recommendations.</p>
+        <form onSubmit={handleBioSubmit} style={{ marginTop: "1rem" }}>
+          <div className="info-grid">
+            {( ["interest1", "interest2", "interest3", "music", "hobby"] as Array<keyof UserBio>).map(field => (
+              <div className="form-field" key={field}>
+                <label htmlFor={field}>
+                  {field.startsWith("interest") ? `Interest ${field.slice(-1)}` : field === "music" ? "Favorite music" : "Hobby"}
+                </label>
+                <input
+                  id={field}
+                  name={field}
+                  value={bioForm[field]}
+                  onChange={e => setBioForm(prev => ({ ...prev, [field]: e.target.value }))}
+                  placeholder="Add a value"
+                  required
+                />
+              </div>
+            ))}
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={savingBio}>
+            {savingBio ? "Saving..." : "Save interests"}
+          </button>
+        </form>
+        {error && <p className="form-feedback form-feedback--error">{error}</p>}
+        {message && <p className="form-feedback form-feedback--success">{message}</p>}
+      </section>
+    </main>
   );
 };
 

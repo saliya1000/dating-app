@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 // @ts-ignore: If not installed, run: npm install socket.io-client
 import { io, Socket } from "socket.io-client";
-import { fetchMe, fetchConnections, fetchUserProfile, fetchChatHistory, sendMessageAPI, markChatRead } from "../utils/api";
+import { fetchMe, fetchConnections, fetchChatHistory, sendMessageAPI, markChatRead } from "../utils/api";
 
 interface ChatUser { id: number; name: string; profilePic: string | null; }
 interface ChatMessage {
@@ -37,15 +37,18 @@ const Chat = () => {
     fetchMe(token).then(me => {
       if (me.error) { navigate("/login"); return; }
       setUser(me);
-      fetchConnections(token).then(async (conns:any[]) => {
+      fetchConnections(token).then((conns:any[]) => {
         if (Array.isArray(conns)) {
-          const cs: ChatUser[] = [];
-          for (const c of conns.filter((c:any)=>c.status==="connected")) {
-            try {
-              const info = await fetchUserProfile(token, c.id);
-              cs.push({ id: c.id, name: info.fullName, profilePic: info.profilePic||null });
-            } catch {}
-          }
+          const cs: ChatUser[] = conns
+            .filter((c:any) => c.status === "accepted")
+            .map((c:any) => {
+              const counterpart = c.requesterId === me.id ? c.recipient : c.requester;
+              return {
+                id: counterpart.id,
+                name: counterpart.username || "Match",
+                profilePic: counterpart.profilePic || null
+              };
+            });
           setConnections(cs);
         }
       });
