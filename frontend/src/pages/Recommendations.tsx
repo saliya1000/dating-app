@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { fetchMe, fetchRecommendations, sendConnectionRequest } from "../utils/api";
+import { fetchMe, fetchRecommendations, sendConnectionRequest, dismissUser } from "../utils/api";
 import { useNavigate } from "react-router-dom";
+import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
 
 interface Recommendation {
   userId: number;
@@ -63,6 +64,16 @@ const Recommendations = () => {
     setSuccessMsg("Request sent! Check the Connections page for updates.");
   };
 
+  const handleDismiss = async (userId: number) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    await dismissUser(token, userId);
+    setHidden(prev => [...prev, userId]);
+  };
+
   const visible = recommendations.filter(rec => !hidden.includes(rec.userId));
 
   if (loading) {
@@ -87,7 +98,7 @@ const Recommendations = () => {
               <article key={rec.userId} className="recommendation-card">
                 <img
                   className="avatar"
-                  src={rec.profilePic || "https://via.placeholder.com/64?text=%F0%9F%91%A4"}
+                  src={rec.profilePic || DEFAULT_PROFILE_PIC_URL}
                   alt={`${rec.username} avatar`}
                 />
                 <div className="recommendation-copy">
@@ -102,9 +113,17 @@ const Recommendations = () => {
                     ))}
                   </div>
                 </div>
-                <button className="btn btn-primary" onClick={() => handleConnect(rec.userId)}>
-                  Connect
-                </button>
+                <div className="recommendation-actions">
+                  <button className="btn btn-secondary" onClick={() => handleDismiss(rec.userId)}>
+                    Dismiss
+                  </button>
+                  <button className="btn btn-primary" onClick={() => handleConnect(rec.userId)}>
+                    Connect
+                  </button>
+                  <button className="btn btn-tertiary" onClick={() => navigate(`/users/${rec.userId}`)}>
+                    View Profile
+                  </button>
+                </div>
               </article>
             ))}
           </div>
