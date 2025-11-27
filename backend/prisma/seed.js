@@ -1,4 +1,5 @@
 import prisma from "../prisma/client.js";
+import bcrypt from "bcrypt";
 
 async function main() {
   console.log("Seeding database...");
@@ -8,19 +9,22 @@ async function main() {
   // -------------------------
   const usersData = [];
   for (let i = 1; i <= 100; i++) {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash("password123", salt);
     usersData.push({
       email: `user${i}@example.com`,
       username: `user${i}`,
-      password: "password123", // Use bcrypt in real app
+      password: hashedPassword,
       profilePic: null,
       bio: `Hi, I am user${i}`,
     });
   }
 
-  await prisma.user.createMany({
-    data: usersData,
-    skipDuplicates: true, // avoids errors if re-run
-  });
+  for (const userData of usersData) {
+    await prisma.user.create({
+      data: userData,
+    });
+  }
 
   console.log("Users created");
 

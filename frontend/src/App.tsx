@@ -116,6 +116,9 @@ function App() {
           <Route path="/profile" element={
             <AuthenticatedRoute element={<Profile />} requireProfile={false} />
           } />
+          <Route path="/users/:id" element={
+            <AuthenticatedRoute element={<Profile />} requireProfile={true} />
+          } />
           <Route path="/recommendations" element={
             <AuthenticatedRoute element={<Recommendations />} requireProfile={true} />
           } />
