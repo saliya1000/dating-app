@@ -50,9 +50,10 @@ const Connections = () => {
     });
   }, [navigate]);
 
-  const items = useMemo(() => {
-    if (!me) return [];
-    return records.map(record => {
+  const { pending, accepted } = useMemo(() => {
+    if (!me) return { pending: [], accepted: [] };
+
+    const items = records.map(record => {
       const isRequester = record.requesterId === me.id;
       const counterpart = isRequester ? record.recipient : record.requester;
       const direction =
@@ -66,6 +67,11 @@ const Connections = () => {
         counterpart,
       };
     });
+
+    return {
+      pending: items.filter(item => item.status === "pending"),
+      accepted: items.filter(item => item.status === "accepted"),
+    };
   }, [records, me]);
 
   const handleRespond = async (connectionId: number, action: "accept" | "reject") => {
@@ -85,45 +91,82 @@ const Connections = () => {
         <p className="text-muted">Manage your accepted matches and pending requests.</p>
         {error && <p className="form-feedback form-feedback--error">{error}</p>}
         {loading && <p>Loading connections…</p>}
-        {!loading && items.length === 0 && (
+        {!loading && pending.length === 0 && accepted.length === 0 && (
           <div className="empty-state">
             <h3>No connections yet</h3>
             <p>Visit the recommendations tab to start meeting people.</p>
           </div>
         )}
-        {items.map(item => (
-          <div key={item.id} className="list-card">
-            <img
-              className="avatar"
-              src={item.counterpart.profilePic || "https://via.placeholder.com/56?text=%F0%9F%91%A4"}
-              alt={`${item.counterpart.username} avatar`}
-            />
-            <div className="list-card__content">
-              <strong>{item.counterpart.username}</strong>
-              <p className="connection-meta">
-                {item.direction === "pending_incoming" && "Wants to connect"}
-                {item.direction === "pending_outgoing" && "Request sent"}
-                {item.direction === "accepted" && "Connected"}
-                {item.direction !== "pending_incoming" && item.direction !== "pending_outgoing" && item.direction !== "accepted" && item.direction}
-              </p>
-              <p className="text-muted">{item.counterpart.bio || "No bio yet."}</p>
-            </div>
-            <div className="list-card__actions">
-              {item.direction === "pending_incoming" && (
-                <>
-                  <button className="btn btn-success" onClick={() => handleRespond(item.id, "accept")}>
-                    Accept
+
+        {pending.length > 0 && (
+          <div>
+            <h3 className="subsection-heading">Pending Requests</h3>
+            {pending.map(item => (
+              <div key={item.id} className="list-card">
+                <img
+                  className="avatar"
+                  src={item.counterpart.profilePic || "https://via.placeholder.com/56?text=%F0%9F%91%A4"}
+                  alt={`${item.counterpart.username} avatar`}
+                />
+                <div className="list-card__content">
+                  <strong>{item.counterpart.username}</strong>
+                  <p className="connection-meta">
+                    {item.direction === "pending_incoming" && "Wants to connect"}
+                    {item.direction === "pending_outgoing" && "Request sent"}
+                  </p>
+                  <p className="text-muted">{item.counterpart.bio || "No bio yet."}</p>
+                </div>
+                <div className="list-card__actions">
+                  {item.direction === "pending_incoming" && (
+                    <>
+                      <button className="btn btn-success" onClick={() => handleRespond(item.id, "accept")}>
+                        Accept
+                      </button>
+                      <button className="btn btn-danger" onClick={() => handleRespond(item.id, "reject")}>
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {item.direction === "pending_outgoing" && <span className="text-muted">Awaiting response…</span>}
+                  <button className="btn btn-tertiary" onClick={() => navigate(`/users/${item.counterpart.id}`)}>
+                    View Profile
                   </button>
-                  <button className="btn btn-danger" onClick={() => handleRespond(item.id, "reject")}>
-                    Reject
-                  </button>
-                </>
-              )}
-              {item.direction === "pending_outgoing" && <span className="text-muted">Awaiting response…</span>}
-              {item.direction === "accepted" && <span className="text-muted">Connected</span>}
-            </div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+
+        {accepted.length > 0 && (
+          <div style={{ marginTop: '2rem' }}>
+            <h3 className="subsection-heading">Accepted Connections</h3>
+            {accepted.map(item => (
+              <div key={item.id} className="list-card">
+                <img
+                  className="avatar"
+                  src={item.counterpart.profilePic || "https://via.placeholder.com/56?text=%F0%9F%91%A4"}
+                  alt={`${item.counterpart.username} avatar`}
+                />
+                <div className="list-card__content">
+                  <strong>{item.counterpart.username}</strong>
+                  <p className="connection-meta">Connected</p>
+                  <p className="text-muted">{item.counterpart.bio || "No bio yet."}</p>
+                </div>
+                <div className="list-card__actions">
+                  <button className="btn btn-danger" onClick={() => handleRespond(item.id, "reject")}>
+                    Disconnect
+                  </button>
+                  <button className="btn btn-primary" onClick={() => navigate(`/chat?with=${item.counterpart.id}`)}>
+                    Chat
+                  </button>
+                  <button className="btn btn-tertiary" onClick={() => navigate(`/users/${item.counterpart.id}`)}>
+                    View Profile
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

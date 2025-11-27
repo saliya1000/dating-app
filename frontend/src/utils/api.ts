@@ -14,6 +14,14 @@ export const registerUser = async (email: string, username: string, password: st
   return res.json();
 };
 
+export const dismissUser = async (token: string, userId: number) => {
+  const res = await fetch(`${API_URL}/connections/${userId}/dismiss`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res;
+};
+
 export const loginUser = async (email: string, password: string) => {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
@@ -39,8 +47,16 @@ export const updateUserProfile = async (token: string, data: { username?: string
   return res.json();
 };
 
-export const fetchUserBio = async (token: string) => {
-  const res = await fetch(`${API_URL}/users/me/bio`, {
+export const fetchUser = async (token: string, id: string) => {
+  const res = await fetch(`${API_URL}/users/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+}
+
+export const fetchUserBio = async (token: string, id?: string) => {
+  const url = id ? `${API_URL}/users/${id}/bio` : `${API_URL}/users/me/bio`;
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
@@ -91,26 +107,11 @@ export const respondToConnection = async (token: string, connectionId: number, a
   return res.json();
 };
 
-// -------- CHAT (placeholders if backend not ready) --------
-export const fetchChatHistory = async (token: string, userId: number, page = 1) => {
-  const res = await fetch(`${API_URL}/chats/${userId}?page=${page}`, {
+// -------- CHAT --------
+export const fetchChatHistory = async (token: string, connectionId: number, cursor?: number) => {
+  const url = cursor ? `${API_URL}/chat/${connectionId}?cursor=${cursor}` : `${API_URL}/chat/${connectionId}`;
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
-};
-
-export const sendMessageAPI = async (token: string, userId: number, content: string) => {
-  const res = await fetch(`${API_URL}/chats/${userId}`, {
-    method: "POST",
-    headers: buildHeaders(token),
-    body: JSON.stringify({ content }),
-  });
-  return res.json();
-};
-
-export const markChatRead = async (token: string, userId: number) => {
-  await fetch(`${API_URL}/chats/${userId}/read`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
 };
