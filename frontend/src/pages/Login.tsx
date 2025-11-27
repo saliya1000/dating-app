@@ -14,7 +14,7 @@ const Login = () => {
     const data = await loginUser(email, password);
     if (data.token) {
       localStorage.setItem("token", data.token);
-      navigate("/profile");
+      window.location.href = "/profile";
     } else {
       setError(data.error || "Login failed");
     }
