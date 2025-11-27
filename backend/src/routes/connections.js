@@ -76,6 +76,42 @@ router.patch("/:id/reject", authMiddleware, async (req, res) => {
   res.json(connection);
 });
 
+// Dismiss a user
+router.post("/:id/dismiss", authMiddleware, async (req, res) => {
+  const dismissedId = parseInt(req.params.id, 10);
+  const dismisserId = req.user.id;
+
+  if (isNaN(dismissedId)) {
+    return res.status(400).json({ error: "Invalid user ID" });
+  }
+
+  // Avoid self-dismissals
+  if (dismisserId === dismissedId) {
+    return res.status(400).json({ error: "Cannot dismiss yourself" });
+  }
+
+  // Avoid duplicate dismissals
+  const existing = await prisma.dismissal.findFirst({
+    where: {
+      dismisserId,
+      dismissedId,
+    },
+  });
+
+  if (existing) {
+    return res.status(400).json({ error: "User already dismissed" });
+  }
+
+  await prisma.dismissal.create({
+    data: {
+      dismisserId,
+      dismissedId,
+    },
+  });
+
+  res.status(204).send();
+});
+
 // List my connections and requests
 router.get("/", authMiddleware, async (req, res) => {
   const connections = await prisma.connection.findMany({
