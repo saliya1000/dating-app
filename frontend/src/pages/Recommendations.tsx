@@ -63,6 +63,16 @@ const Recommendations = () => {
     setSuccessMsg("Request sent! Check the Connections page for updates.");
   };
 
+  const handleDismiss = async (userId: number) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    await dismissUser(token, userId);
+    setHidden(prev => [...prev, userId]);
+  };
+
   const visible = recommendations.filter(rec => !hidden.includes(rec.userId));
 
   if (loading) {
@@ -102,9 +112,17 @@ const Recommendations = () => {
                     ))}
                   </div>
                 </div>
-                <button className="btn btn-primary" onClick={() => handleConnect(rec.userId)}>
-                  Connect
-                </button>
+                <div className="recommendation-actions">
+                  <button className="btn btn-secondary" onClick={() => handleDismiss(rec.userId)}>
+                    Dismiss
+                  </button>
+                  <button className="btn btn-primary" onClick={() => handleConnect(rec.userId)}>
+                    Connect
+                  </button>
+                  <button className="btn btn-tertiary" onClick={() => navigate(`/users/${rec.userId}`)}>
+                    View Profile
+                  </button>
+                </div>
               </article>
             ))}
           </div>

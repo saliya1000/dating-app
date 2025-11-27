@@ -5,19 +5,37 @@ import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
+// Haversine formula to calculate distance between two points on Earth
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c; // Distance in kilometers
+  return distance;
+}
+
+
 /**
  * GET /recommendations → returns 10 best matches
  */
 router.get("/", auth, async (req, res) => {
   const userId = req.user.id;
 
-  const myBio = await prisma.userBio.findUnique({
-    where: { userId }
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { userBio: true },
   });
 
-  if (!myBio) return res.json([]);
+  if (!me || !me.userBio) return res.json([]);
 
-  // Get connections to exclude
+  // Get connections and dismissals to exclude
   const myConnections = await prisma.connection.findMany({
     where: {
       OR: [
@@ -26,29 +44,44 @@ router.get("/", auth, async (req, res) => {
       ]
     }
   });
+  const myDismissals = await prisma.dismissal.findMany({
+    where: { dismisserId: userId },
+  });
 
   const excludeIds = [
     userId,
     ...myConnections.map(c => c.requesterId),
     ...myConnections.map(c => c.recipientId),
+    ...myDismissals.map(d => d.dismissedId),
   ];
 
   // Fetch all other users w/ bios
-  const allUsers = await prisma.userBio.findMany({
+  let allUsers = await prisma.user.findMany({
     where: {
-      userId: { notIn: excludeIds }
+      id: { notIn: excludeIds },
+      userBio: { isNot: null },
+      latitude: { not: null },
+      longitude: { not: null },
     },
-    include: { user: true }
+    include: { userBio: true }
   });
+
+  // Filter by location
+  if (me.latitude && me.longitude && me.userBio.maxDistance) {
+    allUsers = allUsers.filter(other => {
+      const distance = getDistance(me.latitude, me.longitude, other.latitude, other.longitude);
+      return distance <= me.userBio.maxDistance;
+    });
+  }
 
   const scored = allUsers.map((other) => {
     let score = 0;
 
-    if (other.interest1 === myBio.interest1) score++;
-    if (other.interest2 === myBio.interest2) score++;
-    if (other.interest3 === myBio.interest3) score++;
-    if (other.music === myBio.music) score++;
-    if (other.hobby === myBio.hobby) score++;
+    if (other.userBio.interest1 === me.userBio.interest1) score++;
+    if (other.userBio.interest2 === me.userBio.interest2) score++;
+    if (other.userBio.interest3 === me.userBio.interest3) score++;
+    if (other.userBio.music === me.userBio.music) score++;
+    if (other.userBio.hobby === me.userBio.hobby) score++;
 
     return { ...other, score };
   });
