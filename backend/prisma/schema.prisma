@@ -14,22 +14,29 @@ model User {
   username   String
   profilePic String?
   bio        String?
+  latitude   Float?
+  longitude  Float?
   createdAt  DateTime @default(now())
 
   userBio             UserBio?
   sentConnections     Connection[] @relation("RequestSent")
   receivedConnections Connection[] @relation("RequestReceived")
+  sentMessages        Message[]    @relation("SentMessages")
+  receivedMessages    Message[]    @relation("ReceivedMessages")
+  dismissalsMade      Dismissal[]  @relation("DismissalsMade")
+  dismissalsReceived  Dismissal[]  @relation("DismissalsReceived")
 }
 
 model UserBio {
-  id        Int    @id @default(autoincrement())
-  user      User   @relation(fields: [userId], references: [id])
-  userId    Int    @unique
-  interest1 String
-  interest2 String
-  interest3 String
-  music     String
-  hobby     String
+  id          Int     @id @default(autoincrement())
+  user        User    @relation(fields: [userId], references: [id])
+  userId      Int     @unique
+  interest1   String
+  interest2   String
+  interest3   String
+  music       String
+  hobby       String
+  maxDistance Int?
 }
 
 model Connection {
@@ -40,4 +47,29 @@ model Connection {
   recipientId Int
   status      String   @default("pending")
   createdAt   DateTime @default(now())
+  messages    Message[]
+}
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  connection  Connection @relation(fields: [connectionId], references: [id])
+  connectionId Int
+  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId    Int
+  recipient   User     @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  recipientId Int
+  content     String
+  createdAt   DateTime @default(now())
+  read        Boolean  @default(false)
+}
+
+model Dismissal {
+  id          Int      @id @default(autoincrement())
+  dismisser   User     @relation("DismissalsMade", fields: [dismisserId], references: [id])
+  dismisserId Int
+  dismissed   User     @relation("DismissalsReceived", fields: [dismissedId], references: [id])
+  dismissedId Int
+  createdAt   DateTime @default(now())
+
+  @@unique([dismisserId, dismissedId])
 }
