@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
-import { fetchMe, fetchUserBio, updateUserProfile, updateUserBio, fetchUser } from "../utils/api";
+import { useEffect, useState, useContext } from "react";
+import { fetchMe, fetchUserBio, updateUserProfile, updateUserBio, fetchUser, deleteConnection } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
+import { NotifContext } from "../App";
+import { OnlineIndicator } from "../components/OnlineIndicator";
 
 interface UserProfile {
   id: number;
@@ -9,6 +11,12 @@ interface UserProfile {
   username: string;
   bio?: string | null;
   profilePic?: string | null;
+  lastSeen?: string | null;
+  connection?: {
+    id: number;
+    status: string;
+    requesterId: number;
+  };
 }
 
 interface UserBio {
@@ -17,6 +25,7 @@ interface UserBio {
   interest3: string;
   music: string;
   hobby: string;
+  maxDistance?: number;
 }
 
 const EMPTY_BIO: UserBio = {
@@ -29,6 +38,7 @@ const EMPTY_BIO: UserBio = {
 
 const Profile = () => {
   const { id } = useParams();
+  const { onlineUsers } = useContext(NotifContext);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [bio, setBio] = useState<UserBio>(EMPTY_BIO);
   const [basicForm, setBasicForm] = useState({ username: "", bio: "", profilePic: "" });
@@ -36,6 +46,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [savingBasic, setSavingBasic] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
@@ -79,14 +90,25 @@ const Profile = () => {
         .then(([user, userBio]) => {
           if (user?.error) {
             setError(user.error);
+            setLoading(false);
+            return;
+          }
+          if (!user) {
+            setError("User not found");
+            setLoading(false);
             return;
           }
           setUser(user);
-          if (userBio) {
+          if (userBio && !userBio.error) {
             setBio(userBio);
           }
+          setLoading(false);
         })
-        .finally(() => setLoading(false));
+        .catch((err) => {
+          console.error("Error fetching user:", err);
+          setError("Failed to load user profile");
+          setLoading(false);
+        });
     }
   }, [navigate, isMe, id]);
 
@@ -148,10 +170,29 @@ const Profile = () => {
     }
   };
 
+  const handleDisconnect = async () => {
+    if (!user?.connection?.id) return;
+    if (!window.confirm("Are you sure you want to disconnect?")) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setDisconnecting(true);
+    try {
+      await deleteConnection(token, user.connection.id);
+      navigate("/connections"); // Redirect to connections page after disconnect
+    } catch (err) {
+      setError("Failed to disconnect.");
+      setDisconnecting(false);
+    }
+  };
+
   if (loading) return <div className="page-surface"><div className="card">Loading profile…</div></div>;
+  if (error) return <div className="page-surface"><div className="card"><p className="form-feedback form-feedback--error">{error}</p></div></div>;
   if (!user) return <div className="page-surface"><div className="card">Unable to load profile.</div></div>;
 
   const interestChips = [bio.interest1, bio.interest2, bio.interest3, bio.music, bio.hobby].filter(Boolean);
+  const isOnline = !isMe && onlineUsers.includes(user.id);
 
   return (
     <main className="page-surface">
@@ -164,6 +205,7 @@ const Profile = () => {
           />
           <div className="profile-meta">
             <strong>{isMe ? basicForm.username : user?.username || "Unnamed"}</strong>
+            {!isMe && <OnlineIndicator isOnline={isOnline} lastSeen={user.lastSeen} />}
             {isMe && <span className="text-muted">{user.email}</span>}
             {interestChips.length > 0 && (
               <div className="tag-cloud">
@@ -171,6 +213,16 @@ const Profile = () => {
                   <span key={idx} className="tag">{chip}</span>
                 ))}
               </div>
+            )}
+            {!isMe && user.connection?.status === "accepted" && (
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                style={{ marginTop: "0.5rem" }}
+              >
+                {disconnecting ? "Disconnecting..." : "Disconnect"}
+              </button>
             )}
           </div>
         </div>
@@ -187,13 +239,22 @@ const Profile = () => {
               />
             </div>
             <div className="form-field">
-              <label htmlFor="profilePic">Profile picture URL</label>
+              <label htmlFor="profilePic">Profile picture</label>
               <input
                 id="profilePic"
                 name="profilePic"
-                value={basicForm.profilePic}
-                onChange={e => setBasicForm(prev => ({ ...prev, profilePic: e.target.value }))}
-                placeholder="https://example.com/me.png"
+                type="file"
+                accept="image/*"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setBasicForm(prev => ({ ...prev, profilePic: reader.result as string }));
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
               />
             </div>
             <div className="form-field" style={{ gridColumn: "1 / -1" }}>
@@ -215,11 +276,11 @@ const Profile = () => {
 
       {isMe && (
         <section className="card">
-        <h3 className="section-heading">Signature interests & Location</h3>
+          <h3 className="section-heading">Signature interests & Location</h3>
           <p className="text-muted">These details power your recommendations.</p>
           <form onSubmit={handleBioSubmit} style={{ marginTop: "1rem" }}>
             <div className="info-grid">
-            {(["interest1", "interest2", "interest3", "music", "hobby"] as Array<keyof UserBio>).map(field => (
+              {(["interest1", "interest2", "interest3", "music", "hobby"] as Array<keyof UserBio>).map(field => (
                 <div className="form-field" key={field}>
                   <label htmlFor={field}>
                     {field.startsWith("interest") ? `Interest ${field.slice(-1)}` : field === "music" ? "Favorite music" : "Hobby"}
@@ -234,26 +295,26 @@ const Profile = () => {
                   />
                 </div>
               ))}
-            <div className="form-field">
-              <label htmlFor="maxDistance">Max distance (km)</label>
-              <input
-                id="maxDistance"
-                name="maxDistance"
-                type="number"
-                value={bioForm.maxDistance || ""}
-                onChange={e => setBioForm(prev => ({ ...prev, maxDistance: parseInt(e.target.value, 10) }))}
-                placeholder="e.g., 50"
-              />
+              <div className="form-field">
+                <label htmlFor="maxDistance">Max distance (km)</label>
+                <input
+                  id="maxDistance"
+                  name="maxDistance"
+                  type="number"
+                  value={bioForm.maxDistance || ""}
+                  onChange={e => setBioForm(prev => ({ ...prev, maxDistance: parseInt(e.target.value, 10) }))}
+                  placeholder="e.g., 50"
+                />
+              </div>
             </div>
+            <div className="form-actions">
+              <button type="button" className="btn btn-secondary" onClick={handleLocation}>
+                Set Current Location
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={savingBio}>
+                {savingBio ? "Saving..." : "Save Interests & Location"}
+              </button>
             </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={handleLocation}>
-              Set Current Location
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={savingBio}>
-              {savingBio ? "Saving..." : "Save Interests & Location"}
-            </button>
-          </div>
           </form>
           {error && <p className="form-feedback form-feedback--error">{error}</p>}
           {message && <p className="form-feedback form-feedback--success">{message}</p>}

@@ -1,7 +1,40 @@
 import "./Home.css";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { fetchStats } from "../utils/api";
+
+interface Stats {
+  activeUsers: number;
+  successfulMatches: number;
+  avgResponseTime: number;
+}
 
 const Home = () => {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats()
+      .then((data) => {
+        if (data) {
+          setStats(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch stats:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}K`;
+    }
+    return num.toString();
+  };
+
   return (
     <main className="page-surface">
       <section className="card hero-card home-hero">
@@ -24,17 +57,23 @@ const Home = () => {
       <section className="stat-grid">
         <article className="stat-card">
           <div className="stat-label">Active members</div>
-          <div className="stat-value">10K+</div>
+          <div className="stat-value">
+            {loading ? "..." : stats ? `${formatNumber(stats.activeUsers)}+` : "10K+"}
+          </div>
           <p className="text-muted">Across hobbies, cities, and vibes</p>
         </article>
         <article className="stat-card">
           <div className="stat-label">Successful matches</div>
-          <div className="stat-value">3.2K</div>
+          <div className="stat-value">
+            {loading ? "..." : stats ? formatNumber(stats.successfulMatches) : "3.2K"}
+          </div>
           <p className="text-muted">Connections made this month</p>
         </article>
         <article className="stat-card">
           <div className="stat-label">Avg. response time</div>
-          <div className="stat-value">4 hrs</div>
+          <div className="stat-value">
+            {loading ? "..." : stats ? `${stats.avgResponseTime} hrs` : "4 hrs"}
+          </div>
           <p className="text-muted">For pending requests</p>
         </article>
       </section>

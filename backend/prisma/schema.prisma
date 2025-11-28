@@ -16,15 +16,38 @@ model User {
   bio        String?
   latitude   Float?
   longitude  Float?
+  lastSeen   DateTime? @default(now())
   createdAt  DateTime @default(now())
+  
+  // Admin fields
+  role       String   @default("USER") // USER, ADMIN
+  isBanned   Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  deletedAt  DateTime?
 
   userBio             UserBio?
-  sentConnections     Connection[] @relation("RequestSent")
-  receivedConnections Connection[] @relation("RequestReceived")
-  sentMessages        Message[]    @relation("SentMessages")
-  receivedMessages    Message[]    @relation("ReceivedMessages")
-  dismissalsMade      Dismissal[]  @relation("DismissalsMade")
-  dismissalsReceived  Dismissal[]  @relation("DismissalsReceived")
+  sentConnections     Connection[] @relation("requester")
+  receivedConnections Connection[] @relation("recipient")
+  sentMessages        Message[]    @relation("sender")
+  receivedMessages    Message[]    @relation("recipient")
+  dismissals          Dismissal[]  @relation("dismisser")
+  dismissedBy         Dismissal[]  @relation("dismissed")
+  
+  sentReports         Report[]     @relation("reporter")
+  receivedReports     Report[]     @relation("reported")
+}
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  reporterId  Int
+  reportedId  Int
+  reason      String
+  details     String?
+  status      String   @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  createdAt   DateTime @default(now())
+  
+  reporter    User     @relation("reporter", fields: [reporterId], references: [id])
+  reported    User     @relation("reported", fields: [reportedId], references: [id])
 }
 
 model UserBio {
@@ -41,9 +64,9 @@ model UserBio {
 
 model Connection {
   id          Int      @id @default(autoincrement())
-  requester   User     @relation("RequestSent", fields: [requesterId], references: [id])
+  requester   User     @relation("requester", fields: [requesterId], references: [id])
   requesterId Int
-  recipient   User     @relation("RequestReceived", fields: [recipientId], references: [id])
+  recipient   User     @relation("recipient", fields: [recipientId], references: [id])
   recipientId Int
   status      String   @default("pending")
   createdAt   DateTime @default(now())
@@ -54,9 +77,9 @@ model Message {
   id          Int      @id @default(autoincrement())
   connection  Connection @relation(fields: [connectionId], references: [id])
   connectionId Int
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  sender      User     @relation("sender", fields: [senderId], references: [id])
   senderId    Int
-  recipient   User     @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  recipient   User     @relation("recipient", fields: [recipientId], references: [id])
   recipientId Int
   content     String
   createdAt   DateTime @default(now())
@@ -65,9 +88,9 @@ model Message {
 
 model Dismissal {
   id          Int      @id @default(autoincrement())
-  dismisser   User     @relation("DismissalsMade", fields: [dismisserId], references: [id])
+  dismisser   User     @relation("dismisser", fields: [dismisserId], references: [id])
   dismisserId Int
-  dismissed   User     @relation("DismissalsReceived", fields: [dismissedId], references: [id])
+  dismissed   User     @relation("dismissed", fields: [dismissedId], references: [id])
   dismissedId Int
   createdAt   DateTime @default(now())
 

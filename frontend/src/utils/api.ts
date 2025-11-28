@@ -15,11 +15,19 @@ export const registerUser = async (email: string, username: string, password: st
 };
 
 export const dismissUser = async (token: string, userId: number) => {
-  const res = await fetch(`${API_URL}/connections/${userId}/dismiss`, {
+  const response = await fetch(`${API_URL}/connections/${userId}/dismiss`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
-  return res;
+  if (!response.ok) throw new Error("Failed to dismiss user");
+};
+
+export const deleteConnection = async (token: string, connectionId: number) => {
+  const response = await fetch(`${API_URL}/connections/${connectionId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Failed to disconnect");
 };
 
 export const loginUser = async (email: string, password: string) => {
@@ -38,7 +46,7 @@ export const fetchMe = async (token: string) => {
   return res.json();
 };
 
-export const updateUserProfile = async (token: string, data: { username?: string; bio?: string; profilePic?: string | null }) => {
+export const updateUserProfile = async (token: string, data: { username?: string; bio?: string; profilePic?: string | null; latitude?: number; longitude?: number }) => {
   const res = await fetch(`${API_URL}/users/me`, {
     method: "PATCH",
     headers: buildHeaders(token),
@@ -107,11 +115,101 @@ export const respondToConnection = async (token: string, connectionId: number, a
   return res.json();
 };
 
+// ============ ADMIN API ============
+
+export const fetchAdminUsers = async (token: string, params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+  const query = new URLSearchParams(params as any).toString();
+  const res = await fetch(`${API_URL}/admin/users?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+export const toggleUserBan = async (token: string, userId: number) => {
+  const res = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+export const toggleUserActive = async (token: string, userId: number) => {
+  const res = await fetch(`${API_URL}/admin/users/${userId}/disable`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+export const deleteUser = async (token: string, userId: number) => {
+  const res = await fetch(`${API_URL}/admin/users/${userId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+export const fetchAdminReports = async (token: string, params?: { status?: string; page?: number; limit?: number }) => {
+  const query = new URLSearchParams(params as any).toString();
+  const res = await fetch(`${API_URL}/admin/reports?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+export const updateReport = async (token: string, reportId: number, data: { status: string; action?: string }) => {
+  const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
+    method: "PATCH",
+    headers: buildHeaders(token),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const fetchAdminStats = async (token: string) => {
+  const res = await fetch(`${API_URL}/admin/stats`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.json();
+};
+
+export const submitReport = async (token: string, data: { reportedId: number; reason: string; details?: string }) => {
+  const res = await fetch(`${API_URL}/reports`, {
+    method: "POST",
+    headers: buildHeaders(token),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
 // -------- CHAT --------
 export const fetchChatHistory = async (token: string, connectionId: number, cursor?: number) => {
   const url = cursor ? `${API_URL}/chat/${connectionId}?cursor=${cursor}` : `${API_URL}/chat/${connectionId}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  return res.json();
+};
+
+export const markMessagesRead = async (token: string, connectionId: number) => {
+  const res = await fetch(`${API_URL}/chat/${connectionId}/read`, {
+    method: "POST",
+    headers: buildHeaders(token),
+  });
+  return res.json();
+};
+
+export const fetchNotifications = async (token: string) => {
+  const res = await fetch(`${API_URL}/notifications`, {
+    headers: buildHeaders(token),
+  });
+  if (!res.ok) return [];
+  return res.json();
+};
+
+// -------- STATS --------
+export const fetchStats = async () => {
+  const res = await fetch(`${API_URL}/stats`);
+  if (!res.ok) return null;
   return res.json();
 };

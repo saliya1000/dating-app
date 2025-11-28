@@ -45,6 +45,18 @@ router.post("/", authMiddleware, async (req, res) => {
     },
   });
 
+  // Emit notification to recipient
+  const io = req.app.get("io");
+  io.to(parsedRecipient).emit("new notification", {
+    id: `req-${connection.id}-${Date.now()}`,
+    type: "connection_request",
+    title: "New Connection Request",
+    message: `${req.user.username} wants to connect with you.`,
+    link: "/connections",
+    createdAt: connection.createdAt,
+    image: req.user.profilePic,
+  });
+
   res.json(connection);
 });
 
@@ -57,6 +69,18 @@ router.patch("/:id/accept", authMiddleware, async (req, res) => {
       requester: { select: { id: true, username: true, profilePic: true, bio: true } },
       recipient: { select: { id: true, username: true, profilePic: true, bio: true } },
     },
+  });
+
+  // Emit notification to requester
+  const io = req.app.get("io");
+  io.to(connection.requesterId).emit("new notification", {
+    id: `acc-${connection.id}-${Date.now()}`,
+    type: "connection_accepted",
+    title: "Request Accepted",
+    message: `${req.user.username} accepted your connection request.`,
+    link: `/chat?with=${connection.id}`,
+    createdAt: new Date(),
+    image: req.user.profilePic,
   });
 
   res.json(connection);
@@ -109,6 +133,36 @@ router.post("/:id/dismiss", authMiddleware, async (req, res) => {
     },
   });
 
+  await prisma.dismissal.create({
+    data: {
+      dismisserId,
+      dismissedId,
+    },
+  });
+
+  res.status(204).send();
+});
+
+// Disconnect
+router.delete("/:id", authMiddleware, async (req, res) => {
+  const connectionId = parseInt(req.params.id, 10);
+  const userId = req.user.id;
+
+  const connection = await prisma.connection.findFirst({
+    where: {
+      id: connectionId,
+      OR: [{ requesterId: userId }, { recipientId: userId }],
+    },
+  });
+
+  if (!connection) {
+    return res.status(404).json({ error: "Connection not found" });
+  }
+
+  await prisma.connection.delete({
+    where: { id: connectionId },
+  });
+
   res.status(204).send();
 });
 
@@ -120,12 +174,33 @@ router.get("/", authMiddleware, async (req, res) => {
         { requesterId: req.user.id },
         { recipientId: req.user.id },
       ],
+      status: "accepted",
     },
     include: {
       requester: { select: { id: true, username: true, profilePic: true, bio: true } },
       recipient: { select: { id: true, username: true, profilePic: true, bio: true } },
+      messages: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
+      },
+      _count: {
+        select: {
+          messages: {
+            where: {
+              recipientId: req.user.id,
+              read: false,
+            },
+          },
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
+  });
+
+  // Sort by last message time
+  connections.sort((a, b) => {
+    const dateA = a.messages[0]?.createdAt || a.createdAt;
+    const dateB = b.messages[0]?.createdAt || b.createdAt;
+    return new Date(dateB) - new Date(dateA);
   });
 
   res.json(connections);

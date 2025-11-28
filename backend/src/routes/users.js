@@ -15,8 +15,17 @@ router.get("/me", authMiddleware, async (req, res) => {
       username: true,
       profilePic: true,
       bio: true,
+      role: true,
+      isBanned: true,
+      isActive: true,
     },
   });
+
+  // Check if user is banned or inactive
+  if (user && (user.isBanned || !user.isActive)) {
+    return res.status(403).json({ error: "Account is suspended" });
+  }
+
   res.json(user);
 });
 
@@ -62,6 +71,7 @@ const checkConnection = async (req, res, next) => {
     return next();
   }
 
+  // 1. Check for existing connection (pending or accepted)
   const connection = await prisma.connection.findFirst({
     where: {
       OR: [
@@ -71,28 +81,96 @@ const checkConnection = async (req, res, next) => {
     },
   });
 
-  if (!connection) {
+  if (connection) {
+    return next();
+  }
+
+  // 2. Check if user is recommended (valid candidate)
+  // Logic: Not blocked/dismissed AND within max distance (if set)
+
+  // Check dismissal
+  const dismissal = await prisma.dismissal.findFirst({
+    where: {
+      dismisserId: currentUserId,
+      dismissedId: requestedUserId,
+    },
+  });
+
+  if (dismissal) {
     return res.status(404).json({ message: "User not found or you don't have permission to view this profile." });
   }
 
+  // Check distance if maxDistance is set
+  const me = await prisma.user.findUnique({
+    where: { id: currentUserId },
+    include: { userBio: true },
+  });
+
+  const other = await prisma.user.findUnique({
+    where: { id: requestedUserId },
+  });
+
+  if (!other) return res.status(404).json({ message: "User not found" });
+
+  // Don't allow viewing banned, inactive, or deleted users
+  if (other.isBanned || !other.isActive || other.deletedAt) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  if (me?.userBio?.maxDistance && me.latitude && me.longitude && other.latitude && other.longitude) {
+    // Haversine formula (duplicated from recommendations.js, ideally shared util)
+    const R = 6371;
+    const dLat = (other.latitude - me.latitude) * (Math.PI / 180);
+    const dLon = (other.longitude - me.longitude) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(me.latitude * (Math.PI / 180)) *
+      Math.cos(other.latitude * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    if (distance > me.userBio.maxDistance) {
+      return res.status(404).json({ message: "User not found or you don't have permission to view this profile." });
+    }
+  }
+
+  // If we got here, they are a valid candidate (recommended)
   next();
 };
 
 
 // GET /users/:id
 router.get("/:id", authMiddleware, checkConnection, async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const currentUserId = req.user.id;
+
   const user = await prisma.user.findUnique({
-    where: { id: parseInt(req.params.id, 10) },
+    where: { id: userId },
     select: {
       id: true,
       username: true,
       profilePic: true,
     },
   });
+
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
-  res.json(user);
+
+  // Fetch connection info
+  const connection = await prisma.connection.findFirst({
+    where: {
+      OR: [
+        { requesterId: currentUserId, recipientId: userId },
+        { requesterId: userId, recipientId: currentUserId },
+      ],
+    },
+    select: { id: true, status: true, requesterId: true }
+  });
+
+  res.json({ ...user, connection });
 });
 
 // GET /users/:id/profile

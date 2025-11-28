@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useContext } from "react";
 import { fetchMe, fetchConnections, respondToConnection } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
+import { NotifContext } from "../App";
+import { OnlineIndicator } from "../components/OnlineIndicator";
 
 interface BasicUser {
   id: number;
   username: string;
   profilePic: string | null;
   bio?: string | null;
+  lastSeen?: string | null;
 }
 
 interface ConnectionRecord {
@@ -20,6 +23,7 @@ interface ConnectionRecord {
 }
 
 const Connections = () => {
+  const { onlineUsers } = useContext(NotifContext);
   const [me, setMe] = useState<{ id: number } | null>(null);
   const [records, setRecords] = useState<ConnectionRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,31 +145,37 @@ const Connections = () => {
         {accepted.length > 0 && (
           <div style={{ marginTop: '2rem' }}>
             <h3 className="subsection-heading">Accepted Connections</h3>
-            {accepted.map(item => (
-              <div key={item.id} className="list-card">
-                <img
-                  className="avatar"
-                  src={item.counterpart.profilePic || DEFAULT_PROFILE_PIC_URL}
-                  alt={`${item.counterpart.username} avatar`}
-                />
-                <div className="list-card__content">
-                  <strong>{item.counterpart.username}</strong>
-                  <p className="connection-meta">Connected</p>
-                  <p className="text-muted">{item.counterpart.bio || "No bio yet."}</p>
+            {accepted.map(item => {
+              const isOnline = onlineUsers.includes(item.counterpart.id);
+              return (
+                <div key={item.id} className="list-card">
+                  <img
+                    className="avatar"
+                    src={item.counterpart.profilePic || DEFAULT_PROFILE_PIC_URL}
+                    alt={`${item.counterpart.username} avatar`}
+                  />
+                  <div className="list-card__content">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <strong>{item.counterpart.username}</strong>
+                      <OnlineIndicator isOnline={isOnline} lastSeen={item.counterpart.lastSeen} showLastSeen={false} />
+                    </div>
+                    <p className="connection-meta">Connected</p>
+                    <p className="text-muted">{item.counterpart.bio || "No bio yet."}</p>
+                  </div>
+                  <div className="list-card__actions">
+                    <button className="btn btn-danger" onClick={() => handleRespond(item.id, "reject")}>
+                      Disconnect
+                    </button>
+                    <button className="btn btn-primary" onClick={() => navigate(`/chat?with=${item.id}`)}>
+                      Chat
+                    </button>
+                    <button className="btn btn-tertiary" onClick={() => navigate(`/users/${item.counterpart.id}`)}>
+                      View Profile
+                    </button>
+                  </div>
                 </div>
-                <div className="list-card__actions">
-                  <button className="btn btn-danger" onClick={() => handleRespond(item.id, "reject")}>
-                    Disconnect
-                  </button>
-                  <button className="btn btn-primary" onClick={() => navigate(`/chat?with=${item.counterpart.id}`)}>
-                    Chat
-                  </button>
-                  <button className="btn btn-tertiary" onClick={() => navigate(`/users/${item.counterpart.id}`)}>
-                    View Profile
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

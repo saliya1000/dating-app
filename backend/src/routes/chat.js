@@ -29,4 +29,22 @@ router.get("/:connectionId", authMiddleware, async (req, res) => {
   res.json(messages);
 });
 
+// POST /chat/:connectionId/read → mark all messages in connection as read
+router.post("/:connectionId/read", authMiddleware, async (req, res) => {
+  const { connectionId } = req.params;
+
+  await prisma.message.updateMany({
+    where: {
+      connectionId: parseInt(connectionId, 10),
+      recipientId: req.user.id,
+      read: false,
+    },
+    data: {
+      read: true,
+    },
+  });
+
+  res.json({ success: true });
+});
+
 export default router;

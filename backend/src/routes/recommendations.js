@@ -13,9 +13,9 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c; // Distance in kilometers
   return distance;
@@ -62,8 +62,16 @@ router.get("/", auth, async (req, res) => {
       userBio: { isNot: null },
       latitude: { not: null },
       longitude: { not: null },
+      role: "USER", // Exclude admin accounts
+      isBanned: false, // Exclude banned users
+      isActive: true, // Exclude inactive users
+      deletedAt: null, // Exclude soft-deleted users
     },
-    include: { userBio: true }
+    include: { userBio: true },
+    // Note: select cannot be used with include at the same level in Prisma.
+    // We need to fetch everything or use select for nested relations.
+    // However, since we need userBio for scoring, include is better.
+    // We can just return the fields we need.
   });
 
   // Filter by location
