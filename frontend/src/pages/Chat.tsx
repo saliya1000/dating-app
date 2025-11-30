@@ -323,7 +323,7 @@ const Chat = () => {
                   <div key={m.id} className={`chat-message ${user.id === m.senderId ? "sent" : "received"}`}>
                     <div className="chat-bubble">
                       <p className="chat-content">{m.content}</p>
-                      <span className="chat-timestamp">{new Date(m.createdAt).toLocaleString()}</span>
+                      <span className="chat-timestamp">{formatRelativeTime(m.createdAt)}</span>
                     </div>
                   </div>
                 ))}
