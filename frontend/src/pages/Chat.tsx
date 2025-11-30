@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { fetchMe, fetchConnections, fetchChatHistory, markMessagesRead } from "../utils/api";
 import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
+import { formatRelativeTime } from "../utils/timeFormat";
 import { NotifContext } from "../App";
 import { OnlineIndicator } from "../components/OnlineIndicator";
 
@@ -271,7 +272,7 @@ const Chat = () => {
                       <p className="typing-indicator">💬 typing…</p>
                     ) : (
                       <p className="last-message-time">
-                        {c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleDateString() : "New Match"}
+                        {c.lastMessageAt ? formatRelativeTime(c.lastMessageAt) : "New Match"}
                       </p>
                     )}
                   </div>
@@ -299,10 +300,16 @@ const Chat = () => {
                 )}
                 <div className="chat-header-info">
                   <h3>Chat with {openChatConnection.name}</h3>
-                  <OnlineIndicator
-                    isOnline={onlineUsers.includes(openChatConnection.userId)}
-                    lastSeen={openChatConnection.lastSeen}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {typing[openChatConnection.userId] ? (
+                      <span className="typing-indicator" style={{ fontSize: '0.85rem', color: '#666' }}>💬 typing...</span>
+                    ) : (
+                      <OnlineIndicator
+                        isOnline={onlineUsers.includes(openChatConnection.userId)}
+                        lastSeen={openChatConnection.lastSeen}
+                      />
+                    )}
+                  </div>
                 </div>
               </header>
               <div className="chat-messages">
@@ -340,7 +347,6 @@ const Chat = () => {
                   Send
                 </button>
               </div>
-              {typing[openChatConnection.userId] && <p className="typing-indicator">💬 Typing…</p>}
             </>
           ) : (
             <div className="empty-state">

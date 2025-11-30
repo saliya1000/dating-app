@@ -15,6 +15,8 @@ router.get("/me", authMiddleware, async (req, res) => {
       username: true,
       profilePic: true,
       bio: true,
+      latitude: true,
+      longitude: true,
       role: true,
       isBanned: true,
       isActive: true,

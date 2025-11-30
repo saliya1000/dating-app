@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchMe, fetchRecommendations, fetchConnections } from "../utils/api";
+import { fetchMe, fetchRecommendations, fetchConnections, fetchUserBio } from "../utils/api";
 import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
+import { calculateProfileCompletion } from "../utils/profileCompletion";
 // import { NotifContext } from "../App";
 
 function Dashboard() {
     const [user, setUser] = useState<any>(null);
+    const [userBio, setUserBio] = useState<any>(null);
     const [recommendations, setRecommendations] = useState<any[]>([]);
     const [recentChats, setRecentChats] = useState<any[]>([]);
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
@@ -24,13 +26,17 @@ function Dashboard() {
                 const userData = await fetchMe(token);
                 setUser(userData);
 
-                // 2. Fetch Recommendations (Top 3)
+                // 2. Fetch User Bio
+                const bioData = await fetchUserBio(token);
+                setUserBio(bioData);
+
+                // 3. Fetch Recommendations (Top 3)
                 const recs = await fetchRecommendations(token);
                 if (Array.isArray(recs)) {
                     setRecommendations(recs.slice(0, 3));
                 }
 
-                // 3. Fetch Connections for Recent Chats
+                // 4. Fetch Connections for Recent Chats
                 const conns = await fetchConnections(token);
                 if (Array.isArray(conns)) {
                     // Filter accepted and sort by last message
@@ -40,21 +46,27 @@ function Dashboard() {
                         .slice(0, 3);
                     setRecentChats(chats);
 
-                    // 4. Filter Pending Requests
+                    // 5. Filter Pending Requests
                     const pending = conns.filter((c: any) => c.status === "pending" && c.recipientId === userData.id);
                     setPendingRequests(pending);
 
-                    // 5. Calculate Stats locally or fetch from new endpoint
-                    // Using local calculation for now to save a request, or could use the new endpoint
-                    // Let's use the new endpoint for consistency if preferred, but we have data here.
-                    // Let's fetch from the new endpoint to get the "Matching Score" logic
-                    const statsRes = await fetch("http://localhost:3000/api/dashboard/stats", {
-                        headers: { Authorization: `Bearer ${token}` }
+                    // 6. Calculate Stats from actual data
+                    const acceptedConnections = conns.filter((c: any) => c.status === "accepted");
+                    const pendingConnections = conns.filter((c: any) => c.status === "pending");
+
+                    // Calculate matching score based on profile completion and connections
+                    const profileComp = calculateProfileCompletion(userData, bioData);
+                    let matchingScore = 0;
+                    if (profileComp.isComplete) matchingScore += 2;
+                    if (acceptedConnections.length > 0) matchingScore += 1;
+                    if (acceptedConnections.length >= 5) matchingScore += 1;
+                    if (acceptedConnections.length >= 10) matchingScore += 1;
+
+                    setStats({
+                        connectionsCount: acceptedConnections.length,
+                        pendingCount: pendingConnections.length,
+                        matchingScore: Math.min(matchingScore, 5)
                     });
-                    if (statsRes.ok) {
-                        const statsData = await statsRes.json();
-                        setStats(statsData);
-                    }
                 }
             } catch (error) {
                 console.error("Error loading dashboard:", error);
@@ -69,14 +81,8 @@ function Dashboard() {
     if (loading) return <div className="page-surface">Loading dashboard...</div>;
     if (!user) return null;
 
-    // Calculate Profile Completion
-    let completedFields = 0;
-    // const totalFields = 4; // bio, interests, profilePic, location/etc
-    if (user.bio) completedFields++;
-    if (user.interests && user.interests.length > 0) completedFields++;
-    if (user.profilePic) completedFields++;
-    // Mock 4th field or just use 3
-    const completionPercentage = Math.round((completedFields / 3) * 100);
+    // Calculate Profile Completion using utility
+    const profileCompletion = calculateProfileCompletion(user, userBio);
 
     return (
         <div className="page-surface">
@@ -92,11 +98,28 @@ function Dashboard() {
                     <div className="card widget-card">
                         <h3>Profile Completion</h3>
                         <div className="progress-container">
-                            <div className="progress-bar" style={{ width: `${completionPercentage}%` }}></div>
+                            <div className="progress-bar" style={{ width: `${profileCompletion.percentage}%` }}></div>
                         </div>
-                        <p className="text-muted small">{completionPercentage}% Complete</p>
-                        {completionPercentage < 100 && (
-                            <Link to="/profile" className="btn-link">Complete Profile →</Link>
+                        <p className="text-muted small">{profileCompletion.percentage}% Complete</p>
+                        {profileCompletion.isComplete ? (
+                            <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#e8f5e9', borderRadius: '0.5rem', border: '1px solid #4caf50' }}>
+                                <p style={{ margin: 0, color: '#2e7d32', fontWeight: 600 }}>🎉 Profile Complete!</p>
+                                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#388e3c' }}>
+                                    You have maximum possibility to get connected with others!
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <Link to="/profile" className="btn-link">Complete Profile →</Link>
+                                <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#666' }}>
+                                    <p style={{ margin: '0.25rem 0', fontWeight: 600 }}>Missing fields:</p>
+                                    <ul style={{ margin: '0.25rem 0', paddingLeft: '1.25rem' }}>
+                                        {profileCompletion.missingFields.map((field, idx) => (
+                                            <li key={idx}>{field}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </>
                         )}
                     </div>
 
@@ -184,20 +207,31 @@ function Dashboard() {
                             <Link to="/recommendations" className="btn-link">Explore</Link>
                         </div>
                         {recommendations.length > 0 ? (
-                            <div className="recommendations-list">
+                            <div className="recommendation-grid">
                                 {recommendations.map((rec) => (
-                                    <div key={rec.id} className="rec-item">
-                                        <img src={rec.profilePic || DEFAULT_PROFILE_PIC_URL} alt="" className="avatar-large" />
-                                        <div className="rec-info">
+                                    <div key={rec.id} className="recommendation-card">
+                                        <img src={rec.profilePic || DEFAULT_PROFILE_PIC_URL} alt="" className="avatar" />
+                                        <div className="recommendation-copy">
                                             <strong>{rec.username}</strong>
-                                            <span className="text-muted small">{rec.sharedInterests?.length || 0} shared interests</span>
-                                            <Link to={`/users/${rec.id}`} className="btn btn-sm btn-primary mt-2">View</Link>
+                                            <p className="text-muted small" style={{ margin: '0.25rem 0' }}>
+                                                {rec.bio || "No bio available"}
+                                            </p>
+                                            {rec.highlights && rec.highlights.length > 0 && (
+                                                <div className="badge-row" style={{ marginTop: '0.5rem' }}>
+                                                    {rec.highlights.slice(0, 3).map((highlight: string, idx: number) => (
+                                                        <span key={idx} className="pill">{highlight}</span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="list-card__actions">
+                                            <Link to={`/users/${rec.id}`} className="btn btn-ghost">View</Link>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-muted">No recommendations yet.</p>
+                            <p className="text-muted">No recommendations yet. Complete your profile to get matched!</p>
                         )}
                     </div>
                 </div>

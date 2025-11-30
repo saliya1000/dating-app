@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { io } from "socket.io-client";
 import { fetchMe, fetchNotifications } from "./utils/api";
 import { DEFAULT_PROFILE_PIC_URL } from "./utils/constants";
+import { calculateProfileCompletion } from "./utils/profileCompletion";
 import "./App.css";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -33,9 +34,25 @@ function AuthenticatedRoute({ element, requireProfile = false }: { element: Reac
     if (!token) { navigate("/login"); return; }
     // Check profile completion if required
     if (!requireProfile) { setIsAllowed(true); setAuthChecked(true); return; }
-    fetchMe(token)
-      .then(data => {
-        if (!data || !data.bio) {
+
+    // Fetch user and bio to check 100% completion
+    Promise.all([
+      fetchMe(token),
+      fetch("http://localhost:3000/api/users/me/bio", {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json())
+    ])
+      .then(([userData, bioData]) => {
+        if (!userData) {
+          navigate("/login");
+          return;
+        }
+
+        // Calculate profile completion
+        const completion = calculateProfileCompletion(userData, bioData);
+
+        if (!completion.isComplete) {
+          // Redirect to profile with a message
           navigate("/profile");
         } else {
           setIsAllowed(true);

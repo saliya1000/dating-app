@@ -83,6 +83,24 @@ const Profile = () => {
               hobby: meBio.hobby || "",
             });
           }
+
+          // Auto-request location if not set
+          if (!me.latitude || !me.longitude) {
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                  const { latitude, longitude } = position.coords;
+                  await updateUserProfile(token, { latitude, longitude });
+                  setUser(prev => prev ? { ...prev, latitude, longitude } : null);
+                  setMessage("Location automatically set!");
+                },
+                (error) => {
+                  console.log("Location permission denied or unavailable:", error);
+                  // Don't show error, just let user set it manually
+                }
+              );
+            }
+          }
         })
         .finally(() => setLoading(false));
     } else {
@@ -159,7 +177,11 @@ const Profile = () => {
           if (!token) return;
           await updateUserProfile(token, { latitude, longitude });
           setUser(prev => prev ? { ...prev, latitude, longitude } : null);
-          setMessage("Location updated!");
+          setMessage("Location updated! Refreshing...");
+          // Reload page to update profile completion
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
         },
         () => {
           setError("Unable to retrieve your location.");
