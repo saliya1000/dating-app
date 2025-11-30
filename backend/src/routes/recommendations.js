@@ -26,6 +26,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
  * GET /recommendations → returns 10 best matches
  */
 router.get("/", auth, async (req, res) => {
+  console.log("Recommendations endpoint hit by user:", req.user.id);
   const userId = req.user.id;
 
   const me = await prisma.user.findUnique({
@@ -126,7 +127,15 @@ router.get("/", auth, async (req, res) => {
 
   const top = scored
     .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+    .slice(0, 10)
+    .map(user => ({
+      id: user.id,
+      username: user.username,
+      profilePic: user.profilePic,
+      bio: user.bio,
+      userBio: user.userBio,
+      score: user.score
+    }));
 
   res.json(top);
 });

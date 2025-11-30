@@ -33,6 +33,7 @@ const Recommendations = () => {
       }
       fetchRecommendations(token)
         .then((data: any[]) => {
+          console.log("Frontend received recommendations:", data);
           if (!Array.isArray(data)) {
             setError("Could not load recommendations yet.");
             return;
