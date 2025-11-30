@@ -174,7 +174,7 @@ router.get("/", authMiddleware, async (req, res) => {
         { requesterId: req.user.id },
         { recipientId: req.user.id },
       ],
-      status: "accepted",
+      status: { in: ["accepted", "pending"] },
     },
     include: {
       requester: { select: { id: true, username: true, profilePic: true, bio: true } },

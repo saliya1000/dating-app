@@ -38,11 +38,17 @@ const Recommendations = () => {
             return;
           }
           const normalized = data.map(item => ({
-            userId: item.user?.id ?? item.userId,
-            username: item.user?.username ?? "Anonymous",
-            profilePic: item.user?.profilePic ?? null,
-            bio: item.user?.bio ?? item.bio ?? "",
-            highlights: [item.interest1, item.interest2, item.interest3, item.music, item.hobby].filter(Boolean),
+            userId: item.id,
+            username: item.username,
+            profilePic: item.profilePic,
+            bio: item.bio,
+            highlights: [
+              item.userBio?.interest1,
+              item.userBio?.interest2,
+              item.userBio?.interest3,
+              item.userBio?.music,
+              item.userBio?.hobby
+            ].filter(Boolean),
             score: item.score ?? 0,
           }));
           setRecommendations(normalized);

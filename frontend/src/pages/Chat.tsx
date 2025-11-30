@@ -218,106 +218,138 @@ const Chat = () => {
     });
   };
 
+  // Mobile view logic
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showSidebar, setShowSidebar] = useState(!openConnectionId);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) {
+      setShowSidebar(!openConnectionId);
+    } else {
+      setShowSidebar(true);
+    }
+  }, [openConnectionId, isMobile, location.search]);
+
   if (!user) return <div className="page-surface"><div className="card">Loading chat…</div></div>;
 
   const openChatConnection = connections.find((c) => c.id === openConnectionId);
 
   return (
     <main className="page-surface chat-layout">
-      <aside className="chat-sidebar">
-        <h2 className="section-heading">Conversations</h2>
-        <div className="conversation-list">
-          {connections.map((c) => {
-            const isOnline = onlineUsers.includes(c.userId);
-            return (
-              <div
-                key={c.id}
-                className={`conversation-item ${c.id === openConnectionId ? "active" : ""}`}
-                onClick={() => navigate(`/chat?with=${c.id}`)}
-              >
-                <div className="avatar-container">
-                  <img src={c.profilePic || DEFAULT_PROFILE_PIC_URL} alt="Profile" className="avatar" />
-                  {isOnline && <div className="online-dot-badge"></div>}
-                </div>
-                <div className="conversation-details">
-                  <div className="conversation-header">
-                    <strong>{c.name}</strong>
-                    {isOnline ? (
-                      <span className="status-text online">Online</span>
+      {(!isMobile || showSidebar) && (
+        <aside className="chat-sidebar" style={isMobile ? { width: '100%', borderRight: 'none' } : {}}>
+          <h2 className="section-heading">Conversations</h2>
+          <div className="conversation-list">
+            {connections.map((c) => {
+              const isOnline = onlineUsers.includes(c.userId);
+              return (
+                <div
+                  key={c.id}
+                  className={`conversation-item ${c.id === openConnectionId ? "active" : ""}`}
+                  onClick={() => navigate(`/chat?with=${c.id}`)}
+                >
+                  <div className="avatar-container">
+                    <img src={c.profilePic || DEFAULT_PROFILE_PIC_URL} alt="Profile" className="avatar" />
+                    {isOnline && <div className="online-dot-badge"></div>}
+                  </div>
+                  <div className="conversation-details">
+                    <div className="conversation-header">
+                      <strong>{c.name}</strong>
+                      {isOnline ? (
+                        <span className="status-text online">Online</span>
+                      ) : (
+                        <span className="status-text">{c.lastSeen ? new Date(c.lastSeen).toLocaleDateString() : ""}</span>
+                      )}
+                    </div>
+                    {typing[c.userId] ? (
+                      <p className="typing-indicator">💬 typing…</p>
                     ) : (
-                      <span className="status-text">{c.lastSeen ? new Date(c.lastSeen).toLocaleDateString() : ""}</span>
+                      <p className="last-message-time">
+                        {c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleDateString() : "New Match"}
+                      </p>
                     )}
                   </div>
-                  {typing[c.userId] ? (
-                    <p className="typing-indicator">💬 typing…</p>
-                  ) : (
-                    <p className="last-message-time">
-                      {c.lastMessageAt ? new Date(c.lastMessageAt).toLocaleDateString() : "New Match"}
-                    </p>
-                  )}
+                  {c.unreadCount > 0 && <div className="unread-indicator">{c.unreadCount}</div>}
                 </div>
-                {c.unreadCount > 0 && <div className="unread-indicator">{c.unreadCount}</div>}
-              </div>
-            );
-          })}
-        </div>
-      </aside>
-      <section className="chat-main">
-        {openConnectionId && openChatConnection ? (
-          <>
-            <header className="chat-header">
-              <div className="chat-header-info">
-                <h3>Chat with {openChatConnection.name}</h3>
-                <OnlineIndicator
-                  isOnline={onlineUsers.includes(openChatConnection.userId)}
-                  lastSeen={openChatConnection.lastSeen}
-                />
-              </div>
-            </header>
-            <div className="chat-messages">
-              {hasMore && (
-                <button className="btn btn-secondary load-more-btn" onClick={loadMoreMessages}>
-                  Load older messages
-                </button>
-              )}
-              {loadingMessages && <div className="chat-loading">Loading messages…</div>}
-              {chatMessages.map((m) => (
-                <div key={m.id} className={`chat-message ${user.id === m.senderId ? "sent" : "received"}`}>
-                  <div className="chat-bubble">
-                    <p className="chat-content">{m.content}</p>
-                    <span className="chat-timestamp">{new Date(m.createdAt).toLocaleString()}</span>
-                  </div>
-                </div>
-              ))}
-              <div ref={msgEndRef}></div>
-            </div>
-            <div className="chat-input-area">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => {
-                  setMessage(e.target.value);
-                  handleTyping();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") sendMessage();
-                }}
-                placeholder="Type a message…"
-                className="chat-input"
-              />
-              <button className="btn btn-primary" onClick={sendMessage}>
-                Send
-              </button>
-            </div>
-            {typing[openChatConnection.userId] && <p className="typing-indicator">💬 Typing…</p>}
-          </>
-        ) : (
-          <div className="empty-state">
-            <h3>Select a conversation</h3>
-            <p>Choose a connection from the list to start chatting.</p>
+              );
+            })}
           </div>
-        )}
-      </section>
+        </aside>
+      )}
+
+      {(!isMobile || !showSidebar) && (
+        <section className="chat-main" style={isMobile ? { display: 'flex' } : {}}>
+          {openConnectionId && openChatConnection ? (
+            <>
+              <header className="chat-header">
+                {isMobile && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => navigate("/chat")}
+                    style={{ marginRight: '0.5rem', padding: '0.4rem 0.8rem' }}
+                  >
+                    ←
+                  </button>
+                )}
+                <div className="chat-header-info">
+                  <h3>Chat with {openChatConnection.name}</h3>
+                  <OnlineIndicator
+                    isOnline={onlineUsers.includes(openChatConnection.userId)}
+                    lastSeen={openChatConnection.lastSeen}
+                  />
+                </div>
+              </header>
+              <div className="chat-messages">
+                {hasMore && (
+                  <button className="btn btn-secondary load-more-btn" onClick={loadMoreMessages}>
+                    Load older messages
+                  </button>
+                )}
+                {loadingMessages && <div className="chat-loading">Loading messages…</div>}
+                {chatMessages.map((m) => (
+                  <div key={m.id} className={`chat-message ${user.id === m.senderId ? "sent" : "received"}`}>
+                    <div className="chat-bubble">
+                      <p className="chat-content">{m.content}</p>
+                      <span className="chat-timestamp">{new Date(m.createdAt).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+                <div ref={msgEndRef}></div>
+              </div>
+              <div className="chat-input-area">
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    handleTyping();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") sendMessage();
+                  }}
+                  placeholder="Type a message…"
+                  className="chat-input"
+                />
+                <button className="btn btn-primary" onClick={sendMessage}>
+                  Send
+                </button>
+              </div>
+              {typing[openChatConnection.userId] && <p className="typing-indicator">💬 Typing…</p>}
+            </>
+          ) : (
+            <div className="empty-state">
+              <h3>Select a conversation</h3>
+              <p>Choose a connection from the list to start chatting.</p>
+            </div>
+          )}
+        </section>
+      )}
     </main>
   );
 };
