@@ -29,6 +29,8 @@ interface ChatMessage {
 
 const SOCKET_URL = "http://localhost:3000";
 
+const COMMON_EMOJIS = ["😀", "😂", "🤣", "😊", "😍", "🥰", "😘", "😜", "😎", "🤩", "🥳", "🤔", "🤫", "🙄", "😫", "😴", "🤮", "🤯", "🤠", "👻", "💀", "👽", "🤖", "🎃", "👍", "👎", "👏", "🙌", "👐", "🤲", "🤝", "🙏", "💪", "🧠", "🫀", "💋", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "🔥", "✨", "🌟", "💯", "💢", "💥", "💫", "💦", "💨", "🕳️", "💣", "💬", "👁️‍🗨️", "🗨️", "🗯️", "💭", "💤"];
+
 const Chat = () => {
   const { onlineUsers } = useContext(NotifContext);
   const [user, setUser] = useState<{ id: number; username: string } | null>(null);
@@ -41,8 +43,9 @@ const Chat = () => {
 
   const openConnectionId = parseInt(new URLSearchParams(location.search).get("with") || "", 10) || null;
 
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
@@ -329,7 +332,57 @@ const Chat = () => {
                 ))}
                 <div ref={msgEndRef}></div>
               </div>
-              <div className="chat-input-area">
+              <div className="chat-input-area" style={{ position: 'relative' }}>
+                {showEmojiPicker && (
+                  <div className="emoji-picker-custom" style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: '0',
+                    marginBottom: '10px',
+                    zIndex: 10,
+                    background: 'white',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(8, 1fr)',
+                    gap: '5px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    width: '300px'
+                  }}>
+                    {COMMON_EMOJIS.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          setMessage(prev => prev + emoji);
+                          setShowEmojiPicker(false);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          fontSize: '1.5rem',
+                          cursor: 'pointer',
+                          padding: '5px',
+                          borderRadius: '4px',
+                          transition: 'background 0.2s'
+                        }}
+                        className="emoji-btn"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="btn-icon"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  style={{ fontSize: '1.5rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0.5rem' }}
+                >
+                  😊
+                </button>
                 <input
                   type="text"
                   value={message}

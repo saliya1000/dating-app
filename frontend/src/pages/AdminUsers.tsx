@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchMe, fetchAdminUsers, toggleUserBan, toggleUserActive, deleteUser } from "../utils/api";
+import { CITIES } from "../utils/cities";
 
 function AdminUsers() {
     // const [user, setUser] = useState<any>(null);
     const [users, setUsers] = useState<any[]>([]);
+    const [selectedUser, setSelectedUser] = useState<any>(null);
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState("all");
     const [loading, setLoading] = useState(true);
@@ -68,6 +70,19 @@ function AdminUsers() {
         loadUsers();
     };
 
+    const getLocationDisplay = (lat?: number, lon?: number) => {
+        if (!lat || !lon) return "Unknown";
+
+        const city = CITIES.find(c =>
+            c.lat && c.lon &&
+            Math.abs(lat - c.lat) < 0.1 &&
+            Math.abs(lon - c.lon) < 0.1
+        );
+
+        if (city) return city.name;
+        return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    };
+
     if (loading) return <div className="page-surface"><div className="card">Loading...</div></div>;
 
     return (
@@ -99,6 +114,7 @@ function AdminUsers() {
                                 <th style={{ padding: "0.75rem" }}>Username</th>
                                 <th style={{ padding: "0.75rem" }}>Email</th>
                                 <th style={{ padding: "0.75rem" }}>Status</th>
+                                <th style={{ padding: "0.75rem" }}>Location</th>
                                 <th style={{ padding: "0.75rem" }}>Reports</th>
                                 <th style={{ padding: "0.75rem" }}>Actions</th>
                             </tr>
@@ -114,10 +130,23 @@ function AdminUsers() {
                                         {!u.isActive && !u.isBanned && <span style={{ color: "#F59E0B" }}>⏸️ INACTIVE</span>}
                                         {u.isActive && !u.isBanned && <span style={{ color: "#10B981" }}>✅ ACTIVE</span>}
                                     </td>
+                                    <td style={{ padding: "0.75rem" }}>
+                                        {u.latitude && u.longitude ? (
+                                            <span title={`${u.latitude}, ${u.longitude}`}>📍 {getLocationDisplay(u.latitude, u.longitude)}</span>
+                                        ) : (
+                                            <span className="text-muted">Unknown</span>
+                                        )}
+                                    </td>
                                     <td style={{ padding: "0.75rem" }}>{u._count?.receivedReports || 0}</td>
                                     <td style={{ padding: "0.75rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                                         {u.role !== "ADMIN" && (
                                             <>
+                                                <button
+                                                    className="btn btn-primary btn-sm"
+                                                    onClick={() => setSelectedUser(u)}
+                                                >
+                                                    View
+                                                </button>
                                                 <button
                                                     className={u.isBanned ? "btn btn-success btn-sm" : "btn btn-danger btn-sm"}
                                                     onClick={() => handleBan(u.id)}
@@ -152,6 +181,95 @@ function AdminUsers() {
                     </div>
                 )}
             </section>
+
+            {selectedUser && (
+                <div style={{
+                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
+                }}>
+                    <div className="card" style={{ width: "90%", maxWidth: "600px", maxHeight: "90vh", overflowY: "auto", position: "relative" }}>
+                        <button
+                            onClick={() => setSelectedUser(null)}
+                            style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer" }}
+                        >
+                            &times;
+                        </button>
+                        <h2 className="section-heading">User Details</h2>
+
+                        <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem", alignItems: "center" }}>
+                            <img
+                                src={selectedUser.profilePic || "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png"}
+                                alt="Avatar"
+                                style={{ width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover" }}
+                            />
+                            <div>
+                                <h3>{selectedUser.username}</h3>
+                                <p className="text-muted">{selectedUser.email}</p>
+                                <p className="small">ID: {selectedUser.id} | Joined: {new Date(selectedUser.createdAt).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="info-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "1rem", display: "grid" }}>
+                            <div>
+                                <strong>Status:</strong><br />
+                                {selectedUser.isBanned ? "🚫 Banned" : selectedUser.isActive ? "✅ Active" : "⏸️ Inactive"}
+                            </div>
+                            <div>
+                                <strong>Role:</strong><br />
+                                {selectedUser.role}
+                            </div>
+                            <div>
+                                <strong>Location:</strong><br />
+                                {selectedUser.latitude && selectedUser.longitude ? (
+                                    <a
+                                        href={`https://www.google.com/maps?q=${selectedUser.latitude},${selectedUser.longitude}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        {getLocationDisplay(selectedUser.latitude, selectedUser.longitude)} ↗️
+                                    </a>
+                                ) : "Not set"}
+                            </div>
+                            <div>
+                                <strong>Last Seen:</strong><br />
+                                {selectedUser.lastSeen ? new Date(selectedUser.lastSeen).toLocaleString() : "Never"}
+                            </div>
+                        </div>
+
+                        <hr style={{ margin: "1rem 0", border: "0", borderTop: "1px solid #eee" }} />
+
+                        <h4>Bio</h4>
+                        <p>{selectedUser.bio || "No bio provided."}</p>
+
+                        {selectedUser.userBio && (
+                            <>
+                                <h4>Interests & Hobbies</h4>
+                                <div className="tag-cloud">
+                                    {[
+                                        selectedUser.userBio.interest1,
+                                        selectedUser.userBio.interest2,
+                                        selectedUser.userBio.interest3,
+                                        selectedUser.userBio.music,
+                                        selectedUser.userBio.hobby
+                                    ].filter(Boolean).map((tag: string, i: number) => (
+                                        <span key={i} className="tag">{tag}</span>
+                                    ))}
+                                </div>
+
+                                <h4 style={{ marginTop: "1rem" }}>Preferences</h4>
+                                <p className="small">
+                                    <strong>Max Distance:</strong> {selectedUser.userBio.maxDistance} km<br />
+                                    <strong>Looking for:</strong> {[
+                                        selectedUser.userBio.prefInterest,
+                                        selectedUser.userBio.prefMusic,
+                                        selectedUser.userBio.prefHobby
+                                    ].filter(Boolean).join(", ") || "Any"}
+                                </p>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

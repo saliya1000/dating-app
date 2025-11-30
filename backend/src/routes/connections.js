@@ -133,12 +133,7 @@ router.post("/:id/dismiss", authMiddleware, async (req, res) => {
     },
   });
 
-  await prisma.dismissal.create({
-    data: {
-      dismisserId,
-      dismissedId,
-    },
-  });
+
 
   res.status(204).send();
 });

@@ -204,9 +204,16 @@ function Dashboard() {
                     <div className="card widget-card">
                         <div className="widget-header">
                             <h3>Top Recommendations</h3>
-                            <Link to="/recommendations" className="btn-link">Explore</Link>
+                            {profileCompletion.isComplete && <Link to="/recommendations" className="btn-link">Explore</Link>}
                         </div>
-                        {recommendations.length > 0 ? (
+                        {!profileCompletion.isComplete ? (
+                            <div className="empty-state" style={{ padding: '2rem 1rem' }}>
+                                <p className="text-muted">Complete your profile to unlock recommendations!</p>
+                                <Link to="/profile" className="btn btn-primary btn-sm" style={{ marginTop: '1rem' }}>
+                                    Go to Profile
+                                </Link>
+                            </div>
+                        ) : recommendations.length > 0 ? (
                             <div className="recommendation-grid">
                                 {recommendations.map((rec) => (
                                     <div key={rec.id} className="recommendation-card">
@@ -231,7 +238,7 @@ function Dashboard() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-muted">No recommendations yet. Complete your profile to get matched!</p>
+                            <p className="text-muted">No recommendations yet. Check back later!</p>
                         )}
                     </div>
                 </div>

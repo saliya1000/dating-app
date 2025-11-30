@@ -41,6 +41,11 @@ router.get("/users", async (req, res) => {
                     isActive: true,
                     createdAt: true,
                     lastSeen: true,
+                    latitude: true,
+                    longitude: true,
+                    profilePic: true,
+                    bio: true,
+                    userBio: true,
                     _count: {
                         select: {
                             sentConnections: true,

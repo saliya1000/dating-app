@@ -60,6 +60,9 @@ model UserBio {
   music       String
   hobby       String
   maxDistance Int?
+  prefInterest String? // What they are looking for (matches against interest1/2/3)
+  prefMusic    String? // What music they want their match to like
+  prefHobby    String? // What hobby they want their match to have
 }
 
 model Connection {

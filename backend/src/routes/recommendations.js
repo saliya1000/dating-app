@@ -85,14 +85,44 @@ router.get("/", auth, async (req, res) => {
   const scored = allUsers.map((other) => {
     let score = 0;
 
-    if (other.userBio.interest1 === me.userBio.interest1) score++;
-    if (other.userBio.interest2 === me.userBio.interest2) score++;
-    if (other.userBio.interest3 === me.userBio.interest3) score++;
-    if (other.userBio.music === me.userBio.music) score++;
-    if (other.userBio.hobby === me.userBio.hobby) score++;
+    const normalize = (str) => (str || "").toLowerCase().trim();
+
+    // 1. Interest Matching
+    if (me.userBio.prefInterest && me.userBio.prefInterest.trim()) {
+      // If user has a specific interest preference, check if candidate has it
+      const target = normalize(me.userBio.prefInterest);
+      if (normalize(other.userBio.interest1) === target ||
+        normalize(other.userBio.interest2) === target ||
+        normalize(other.userBio.interest3) === target) {
+        score += 2; // Higher score for explicit preference match
+      }
+    } else {
+      // Fallback: Homophily (match my interests)
+      if (normalize(other.userBio.interest1) === normalize(me.userBio.interest1)) score++;
+      if (normalize(other.userBio.interest2) === normalize(me.userBio.interest2)) score++;
+      if (normalize(other.userBio.interest3) === normalize(me.userBio.interest3)) score++;
+    }
+
+    // 2. Music Matching
+    if (me.userBio.prefMusic && me.userBio.prefMusic.trim()) {
+      if (normalize(other.userBio.music) === normalize(me.userBio.prefMusic)) {
+        score += 2;
+      }
+    } else {
+      if (normalize(other.userBio.music) === normalize(me.userBio.music)) score++;
+    }
+
+    // 3. Hobby Matching
+    if (me.userBio.prefHobby && me.userBio.prefHobby.trim()) {
+      if (normalize(other.userBio.hobby) === normalize(me.userBio.prefHobby)) {
+        score += 2;
+      }
+    } else {
+      if (normalize(other.userBio.hobby) === normalize(me.userBio.hobby)) score++;
+    }
 
     return { ...other, score };
-  });
+  }).filter(user => user.score > 0); // Refuse to recommend obviously poor matches (score 0)
 
   const top = scored
     .sort((a, b) => b.score - a.score)

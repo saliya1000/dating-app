@@ -53,12 +53,12 @@ router.get("/me/bio", authMiddleware, async (req, res) => {
 
 // PATCH /users/me/bio → update interests and maxDistance
 router.patch("/me/bio", authMiddleware, async (req, res) => {
-  const { interest1, interest2, interest3, music, hobby, maxDistance } = req.body;
+  const { interest1, interest2, interest3, music, hobby, maxDistance, prefInterest, prefMusic, prefHobby } = req.body;
 
   const updatedBio = await prisma.userBio.upsert({
     where: { userId: req.user.id },
-    update: { interest1, interest2, interest3, music, hobby, maxDistance },
-    create: { userId: req.user.id, interest1, interest2, interest3, music, hobby, maxDistance },
+    update: { interest1, interest2, interest3, music, hobby, maxDistance, prefInterest, prefMusic, prefHobby },
+    create: { userId: req.user.id, interest1, interest2, interest3, music, hobby, maxDistance, prefInterest, prefMusic, prefHobby },
   });
 
   res.json(updatedBio);

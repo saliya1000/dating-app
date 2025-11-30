@@ -26,19 +26,13 @@ export function calculateProfileCompletion(
 ): ProfileCompletionResult {
     const missingFields: string[] = [];
     let completedFields = 0;
-    const totalFields = 8; // bio, profilePic, location (lat+long count as 1), 3 interests, music, hobby
+    const totalFields = 7; // bio, location (lat+long count as 1), 3 interests, music, hobby
 
     // Check basic profile fields
     if (user.bio && user.bio.trim().length > 0) {
         completedFields++;
     } else {
         missingFields.push("Bio");
-    }
-
-    if (user.profilePic) {
-        completedFields++;
-    } else {
-        missingFields.push("Profile Picture");
     }
 
     if (user.latitude && user.longitude) {
