@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useContext } from "react";
 import { fetchMe, fetchConnections, respondToConnection } from "../utils/api";
 import { useNavigate } from "react-router-dom";
 import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
-import { NotifContext } from "../App";
+import { NotifContext } from "../context/NotifContext";
 import { OnlineIndicator } from "../components/OnlineIndicator";
 
 interface BasicUser {

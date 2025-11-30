@@ -1,20 +1,23 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "./client.js";
 
 async function main() {
-    const user = await prisma.user.findFirst({
-        where: {
-            username: "Cameron Moore"
-        }
+    const email = process.argv[2];
+    if (!email) {
+        console.log("Please provide an email address.");
+        return;
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { email }
     });
 
     if (user) {
         console.log(`User found:`);
+        console.log(`ID: ${user.id}`);
         console.log(`Email: ${user.email}`);
         console.log(`Username: ${user.username}`);
     } else {
-        console.log("User 'Cameron Moore' not found.");
+        console.log(`User '${email}' not found.`);
     }
 }
 

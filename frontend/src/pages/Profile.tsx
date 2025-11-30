@@ -1,8 +1,8 @@
 import { useEffect, useState, useContext, useRef } from "react";
-import { fetchMe, fetchUserBio, updateUserProfile, updateUserBio, fetchUser, deleteConnection } from "../utils/api";
+import { fetchMe, fetchUserBio, updateUserProfile, updateUserBio, fetchUser, deleteConnection, submitReport } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
-import { NotifContext } from "../App";
+import { NotifContext } from "../context/NotifContext";
 import { OnlineIndicator } from "../components/OnlineIndicator";
 import { CITIES } from "../utils/cities";
 
@@ -46,7 +46,7 @@ const EMPTY_BIO: UserBio = {
 
 const Profile = () => {
   const { id } = useParams();
-  const { onlineUsers } = useContext(NotifContext);
+  const { onlineUsers, currentUser } = useContext(NotifContext);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [bio, setBio] = useState<UserBio>(EMPTY_BIO);
   const [basicForm, setBasicForm] = useState({ username: "", bio: "", profilePic: "" });
@@ -68,6 +68,10 @@ const Profile = () => {
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("fake_profile");
+  const [reportDetails, setReportDetails] = useState("");
+  const [submittingReport, setSubmittingReport] = useState(false);
   const navigate = useNavigate();
   const isMe = !id;
 
@@ -264,6 +268,32 @@ const Profile = () => {
     }
   };
 
+  const handleReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setSubmittingReport(true);
+    try {
+      await submitReport(token, {
+        reportedId: user.id,
+        reason: reportReason,
+        details: reportDetails
+      });
+      setShowReportModal(false);
+      setMessage("User reported successfully.");
+      setReportDetails("");
+      setReportReason("fake_profile");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to submit report.");
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
+
   if (loading) return <div className="page-surface"><div className="card">Loading profile…</div></div>;
   if (error) return <div className="page-surface"><div className="card"><p className="form-feedback form-feedback--error">{error}</p></div></div>;
   if (!user) return <div className="page-surface"><div className="card">Unable to load profile.</div></div>;
@@ -312,15 +342,28 @@ const Profile = () => {
                 ))}
               </div>
             )}
-            {!isMe && user.connection?.status === "accepted" && (
-              <button
-                className="btn btn-danger btn-sm"
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-                style={{ marginTop: "0.5rem" }}
-              >
-                {disconnecting ? "Disconnecting..." : "Disconnect"}
-              </button>
+            {!isMe && currentUser?.role !== "ADMIN" && user.connection?.status === "accepted" && (
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => navigate(`/chat?with=${user.connection?.id}`)}
+                >
+                  Chat
+                </button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                >
+                  {disconnecting ? "Disconnecting..." : "Disconnect"}
+                </button>
+                <button
+                  className="btn btn-warning btn-sm"
+                  onClick={() => setShowReportModal(true)}
+                >
+                  Report
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -526,6 +569,65 @@ const Profile = () => {
           {error && <p className="form-feedback form-feedback--error">{error}</p>}
           {message && <p className="form-feedback form-feedback--success">{message}</p>}
         </section >
+      )}
+
+      {showReportModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000
+        }}>
+          <div className="card" style={{ width: "90%", maxWidth: "500px", position: "relative" }}>
+            <button
+              onClick={() => setShowReportModal(false)}
+              style={{ position: "absolute", top: "1rem", right: "1rem", background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer" }}
+            >
+              &times;
+            </button>
+            <h2 className="section-heading">Report User</h2>
+            <form onSubmit={handleReportSubmit}>
+              <div className="form-group">
+                <label>Reason</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  style={{ width: "100%", padding: "0.5rem" }}
+                >
+                  <option value="fake_profile">Fake Profile</option>
+                  <option value="harassment">Harassment</option>
+                  <option value="inappropriate_content">Inappropriate Content</option>
+                  <option value="spam">Spam</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ marginTop: "1rem" }}>
+                <label>Details (Optional)</label>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  rows={4}
+                  style={{ width: "100%", padding: "0.5rem" }}
+                  placeholder="Please provide more details..."
+                />
+              </div>
+              <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setShowReportModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-danger"
+                  disabled={submittingReport}
+                >
+                  {submittingReport ? "Submitting..." : "Submit Report"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </main >
   );

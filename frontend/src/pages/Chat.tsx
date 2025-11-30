@@ -5,7 +5,7 @@ import { io, Socket } from "socket.io-client";
 import { fetchMe, fetchConnections, fetchChatHistory, markMessagesRead } from "../utils/api";
 import { DEFAULT_PROFILE_PIC_URL } from "../utils/constants";
 import { formatRelativeTime } from "../utils/timeFormat";
-import { NotifContext } from "../App";
+import { NotifContext } from "../context/NotifContext";
 import { OnlineIndicator } from "../components/OnlineIndicator";
 
 interface ChatUser {

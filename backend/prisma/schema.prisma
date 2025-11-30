@@ -35,6 +35,7 @@ model User {
   
   sentReports         Report[]     @relation("reporter")
   receivedReports     Report[]     @relation("reported")
+  inquiries           BannedInquiry[]
 }
 
 model Report {
@@ -98,4 +99,13 @@ model Dismissal {
   createdAt   DateTime @default(now())
 
   @@unique([dismisserId, dismissedId])
+}
+
+model BannedInquiry {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  status    String   @default("PENDING") // PENDING, RESOLVED
+  createdAt DateTime @default(now())
 }

@@ -81,6 +81,7 @@ function AdminDashboard() {
                 <div style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
                     <Link to="/admin/users" className="btn btn-primary">Manage Users</Link>
                     <Link to="/admin/reports" className="btn btn-secondary">View Reports</Link>
+                    <Link to="/admin/inquiries" className="btn btn-secondary">View Inquiries</Link>
                 </div>
             </section>
         </main>

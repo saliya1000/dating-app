@@ -1,12 +1,13 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
+import authMiddlewareAllowBanned from "../middleware/authBanned.js";
 import authMiddleware from "../middleware/auth.js";
 
 const router = express.Router();
 
 // GET /users/me → get profile info
-router.get("/me", authMiddleware, async (req, res) => {
+router.get("/me", authMiddlewareAllowBanned, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
     select: {
@@ -23,11 +24,7 @@ router.get("/me", authMiddleware, async (req, res) => {
     },
   });
 
-  // Check if user is banned or inactive
-  if (user && (user.isBanned || !user.isActive)) {
-    return res.status(403).json({ error: "Account is suspended" });
-  }
-
+  // Return user even if banned, so frontend can redirect
   res.json(user);
 });
 

@@ -13,6 +13,7 @@ import statsRoutes from "./routes/stats.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import adminRoutes from "./routes/admin.js";
 import reportsRoutes from "./routes/reports.js";
+import inquiriesRoutes from "./routes/inquiries.js";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -42,6 +43,7 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/inquiries", inquiriesRoutes);
 
 app.get("/", (_req, res) => {
   res.json({ status: "ok", message: "Backend is running" });
@@ -85,6 +87,16 @@ io.on("connection", (socket) => {
 
   socket.on("chat message", async (msg) => {
     const { connectionId, senderId, recipientId, content } = msg;
+
+    // Check if sender is admin
+    const senderUser = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { role: true }
+    });
+
+    if (senderUser?.role === "ADMIN") {
+      return;
+    }
     const message = await prisma.message.create({
       data: {
         connectionId,

@@ -14,7 +14,25 @@ const Login = () => {
     const data = await loginUser(email, password);
     if (data.token) {
       localStorage.setItem("token", data.token);
-      window.location.href = "/profile";
+
+      // Fetch user details to check ban status immediately
+      try {
+        const res = await fetch("http://localhost:3000/users/me", {
+          headers: { Authorization: `Bearer ${data.token}` }
+        });
+        const user = await res.json();
+
+        if (user.isBanned) {
+          window.location.href = "/banned";
+        } else if (user.role === "ADMIN") {
+          window.location.href = "/";
+        } else {
+          window.location.href = "/profile";
+        }
+      } catch (err) {
+        // Fallback if fetch fails
+        window.location.href = "/profile";
+      }
     } else {
       setError(data.error || "Login failed");
     }

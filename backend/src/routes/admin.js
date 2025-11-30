@@ -89,11 +89,21 @@ router.patch("/users/:id/ban", async (req, res) => {
             return res.status(403).json({ error: "Cannot ban admin users" });
         }
 
+        const isBanning = !user.isBanned;
+
         const updated = await prisma.user.update({
             where: { id: userId },
-            data: { isBanned: !user.isBanned },
+            data: { isBanned: isBanning },
             select: { id: true, username: true, isBanned: true },
         });
+
+        // If unbanning, resolve any pending inquiries
+        if (!isBanning) {
+            await prisma.bannedInquiry.updateMany({
+                where: { userId: userId, status: "PENDING" },
+                data: { status: "RESOLVED" },
+            });
+        }
 
         res.json(updated);
     } catch (error) {

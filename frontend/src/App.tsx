@@ -1,5 +1,5 @@
-import { Routes, Route, NavLink, useNavigate } from "react-router-dom";
-import { useEffect, useState, createContext, useContext, useRef } from "react";
+import { Routes, Route, NavLink, useNavigate, Navigate } from "react-router-dom";
+import { useEffect, useState, useContext, useRef } from "react";
 import type { ReactElement } from "react";
 import { io } from "socket.io-client";
 import { fetchMe, fetchNotifications } from "./utils/api";
@@ -17,13 +17,10 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
 import AdminReports from "./pages/AdminReports";
+import AdminInquiries from "./pages/AdminInquiries";
+import Banned from "./pages/Banned";
 
-// Minimal notification state/context
-export const NotifContext = createContext<{
-  unreadChats: number;
-  incomingRequests: number;
-  onlineUsers: number[];
-}>({ unreadChats: 0, incomingRequests: 0, onlineUsers: [] });
+import { NotifContext } from "./context/NotifContext";
 
 function AuthenticatedRoute({ element, requireProfile = false }: { element: ReactElement, requireProfile?: boolean }) {
   const navigate = useNavigate();
@@ -122,7 +119,7 @@ function AppNav({ isAuthenticated, onLogout, notifications, onNotificationClick,
           <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>
             {isAuthenticated ? "Dashboard" : "Home"}
           </NavLink>
-          {isAuthenticated && (
+          {isAuthenticated && userRole !== "ADMIN" && (
             <>
               <NavLink to="/profile" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>Profile</NavLink>
               <NavLink to="/recommendations" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}>Recommendations</NavLink>
@@ -134,11 +131,6 @@ function AppNav({ isAuthenticated, onLogout, notifications, onNotificationClick,
                 Chat {notif.unreadChats > 0 && <span className="badge">{notif.unreadChats}</span>}
               </NavLink>
             </>
-          )}
-          {isAuthenticated && userRole === "ADMIN" && (
-            <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`} style={{ marginLeft: "auto" }}>
-              🛡️ Admin
-            </NavLink>
           )}
           {!isAuthenticated && (
             <>
@@ -288,7 +280,7 @@ function App() {
   };
 
   return (
-    <NotifContext.Provider value={{ ...notif, onlineUsers }}>
+    <NotifContext.Provider value={{ ...notif, onlineUsers, currentUser: user }}>
       <div className="app-shell">
         <AppNav
           isAuthenticated={isAuthenticated}
@@ -298,23 +290,24 @@ function App() {
           userRole={user?.role}
         />
         <Routes>
-          <Route path="/" element={isAuthenticated ? <Dashboard /> : <Home />} />
+          <Route path="/" element={isAuthenticated ? (user?.isBanned ? <Navigate to="/banned" /> : (user?.role === "ADMIN" ? <AdminDashboard /> : <Dashboard />)) : <Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/banned" element={<Banned />} />
           <Route path="/profile" element={
-            <AuthenticatedRoute element={<Profile />} requireProfile={false} />
+            user?.isBanned ? <Navigate to="/banned" /> : (user?.role === "ADMIN" ? <Navigate to="/" /> : <AuthenticatedRoute element={<Profile />} requireProfile={false} />)
           } />
           <Route path="/users/:id" element={
-            <AuthenticatedRoute element={<Profile />} requireProfile={false} />
+            user?.role === "ADMIN" ? <Navigate to="/" /> : <AuthenticatedRoute element={<Profile />} requireProfile={false} />
           } />
           <Route path="/recommendations" element={
-            <AuthenticatedRoute element={<Recommendations />} requireProfile={true} />
+            user?.role === "ADMIN" ? <Navigate to="/" /> : <AuthenticatedRoute element={<Recommendations />} requireProfile={true} />
           } />
           <Route path="/connections" element={
-            <AuthenticatedRoute element={<Connections />} requireProfile={true} />
+            user?.role === "ADMIN" ? <Navigate to="/" /> : <AuthenticatedRoute element={<Connections />} requireProfile={true} />
           } />
           <Route path="/chat" element={
-            <AuthenticatedRoute element={<Chat />} requireProfile={true} />
+            user?.role === "ADMIN" ? <Navigate to="/" /> : <AuthenticatedRoute element={<Chat />} requireProfile={true} />
           } />
           <Route path="/admin" element={
             <AuthenticatedRoute element={<AdminDashboard />} requireProfile={false} />
@@ -324,6 +317,9 @@ function App() {
           } />
           <Route path="/admin/reports" element={
             <AuthenticatedRoute element={<AdminReports />} requireProfile={false} />
+          } />
+          <Route path="/admin/inquiries" element={
+            <AuthenticatedRoute element={<AdminInquiries />} requireProfile={false} />
           } />
         </Routes>
       </div>
