@@ -67,7 +67,7 @@ const Home = () => {
           <div className="stat-value">
             {loading ? "..." : stats ? formatNumber(stats.successfulMatches) : "3.2K"}
           </div>
-          <p className="text-muted">Connections made this month</p>
+          <p className="text-muted">Total connections made</p>
         </article>
         <article className="stat-card">
           <div className="stat-label">Avg. response time</div>

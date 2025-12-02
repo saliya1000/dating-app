@@ -5,6 +5,7 @@ import { io } from "socket.io-client";
 import { fetchMe, fetchNotifications } from "./utils/api";
 import { DEFAULT_PROFILE_PIC_URL } from "./utils/constants";
 import { calculateProfileCompletion } from "./utils/profileCompletion";
+import { isTokenExpired } from "./utils/auth";
 import "./App.css";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -176,10 +177,30 @@ function App() {
   const [onlineUsers, setOnlineUsers] = useState<number[]>([]);
 
   useEffect(() => {
-    const syncAuth = () => setIsAuthenticated(!!localStorage.getItem("token"));
+    const syncAuth = () => {
+      const token = localStorage.getItem("token");
+      if (token && isTokenExpired(token)) {
+        localStorage.removeItem("token");
+        setIsAuthenticated(false);
+        return;
+      }
+      setIsAuthenticated(!!token);
+    };
+
     syncAuth();
     window.addEventListener("storage", syncAuth);
-    return () => window.removeEventListener("storage", syncAuth);
+
+    const handleLogoutEvent = () => {
+      localStorage.removeItem("token");
+      setIsAuthenticated(false);
+      window.location.href = "/login";
+    };
+    window.addEventListener("auth:logout", handleLogoutEvent);
+
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("auth:logout", handleLogoutEvent);
+    };
   }, []);
 
   const updateBadges = (currentNotifications: any[]) => {

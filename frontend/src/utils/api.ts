@@ -1,12 +1,20 @@
 const API_URL = "http://localhost:3000/api";
 
+const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const res = await fetch(input, init);
+  if (res.status === 401) {
+    window.dispatchEvent(new Event("auth:logout"));
+  }
+  return res;
+};
+
 const buildHeaders = (token?: string) => ({
   "Content-Type": "application/json",
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
 });
 
 export const registerUser = async (email: string, username: string, password: string) => {
-  const res = await fetch(`${API_URL}/auth/register`, {
+  const res = await customFetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify({ email, username, password }),
@@ -15,7 +23,7 @@ export const registerUser = async (email: string, username: string, password: st
 };
 
 export const dismissUser = async (token: string, userId: number) => {
-  const response = await fetch(`${API_URL}/connections/${userId}/dismiss`, {
+  const response = await customFetch(`${API_URL}/connections/${userId}/dismiss`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -23,7 +31,7 @@ export const dismissUser = async (token: string, userId: number) => {
 };
 
 export const deleteConnection = async (token: string, connectionId: number) => {
-  const response = await fetch(`${API_URL}/connections/${connectionId}`, {
+  const response = await customFetch(`${API_URL}/connections/${connectionId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -31,7 +39,7 @@ export const deleteConnection = async (token: string, connectionId: number) => {
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const res = await fetch(`${API_URL}/auth/login`, {
+  const res = await customFetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify({ email, password }),
@@ -40,14 +48,14 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 export const fetchMe = async (token: string) => {
-  const res = await fetch(`${API_URL}/users/me`, {
+  const res = await customFetch(`${API_URL}/users/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
 };
 
 export const updateUserProfile = async (token: string, data: { username?: string; bio?: string; profilePic?: string | null; latitude?: number; longitude?: number }) => {
-  const res = await fetch(`${API_URL}/users/me`, {
+  const res = await customFetch(`${API_URL}/users/me`, {
     method: "PATCH",
     headers: buildHeaders(token),
     body: JSON.stringify(data),
@@ -56,7 +64,7 @@ export const updateUserProfile = async (token: string, data: { username?: string
 };
 
 export const fetchUser = async (token: string, id: string) => {
-  const res = await fetch(`${API_URL}/users/${id}`, {
+  const res = await customFetch(`${API_URL}/users/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
@@ -64,7 +72,7 @@ export const fetchUser = async (token: string, id: string) => {
 
 export const fetchUserBio = async (token: string, id?: string) => {
   const url = id ? `${API_URL}/users/${id}/bio` : `${API_URL}/users/me/bio`;
-  const res = await fetch(url, {
+  const res = await customFetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
@@ -74,7 +82,7 @@ export const updateUserBio = async (
   token: string,
   data: { interest1: string; interest2: string; interest3: string; music: string; hobby: string }
 ) => {
-  const res = await fetch(`${API_URL}/users/me/bio`, {
+  const res = await customFetch(`${API_URL}/users/me/bio`, {
     method: "PATCH",
     headers: buildHeaders(token),
     body: JSON.stringify(data),
@@ -84,7 +92,7 @@ export const updateUserBio = async (
 
 // -------- RECOMMENDATIONS --------
 export const fetchRecommendations = async (token: string) => {
-  const res = await fetch(`${API_URL}/recommendations`, {
+  const res = await customFetch(`${API_URL}/recommendations`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
@@ -92,7 +100,7 @@ export const fetchRecommendations = async (token: string) => {
 
 // -------- CONNECTIONS --------
 export const sendConnectionRequest = async (token: string, recipientId: number) => {
-  const res = await fetch(`${API_URL}/connections`, {
+  const res = await customFetch(`${API_URL}/connections`, {
     method: "POST",
     headers: buildHeaders(token),
     body: JSON.stringify({ recipientId }),
@@ -101,14 +109,14 @@ export const sendConnectionRequest = async (token: string, recipientId: number) 
 };
 
 export const fetchConnections = async (token: string) => {
-  const res = await fetch(`${API_URL}/connections`, {
+  const res = await customFetch(`${API_URL}/connections`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
 };
 
 export const respondToConnection = async (token: string, connectionId: number, action: "accept" | "reject") => {
-  const res = await fetch(`${API_URL}/connections/${connectionId}/${action}`, {
+  const res = await customFetch(`${API_URL}/connections/${connectionId}/${action}`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -119,14 +127,14 @@ export const respondToConnection = async (token: string, connectionId: number, a
 
 export const fetchAdminUsers = async (token: string, params?: { search?: string; status?: string; page?: number; limit?: number }) => {
   const query = new URLSearchParams(params as any).toString();
-  const res = await fetch(`${API_URL}/admin/users?${query}`, {
+  const res = await customFetch(`${API_URL}/admin/users?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
 };
 
 export const toggleUserBan = async (token: string, userId: number) => {
-  const res = await fetch(`${API_URL}/admin/users/${userId}/ban`, {
+  const res = await customFetch(`${API_URL}/admin/users/${userId}/ban`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -134,7 +142,7 @@ export const toggleUserBan = async (token: string, userId: number) => {
 };
 
 export const toggleUserActive = async (token: string, userId: number) => {
-  const res = await fetch(`${API_URL}/admin/users/${userId}/disable`, {
+  const res = await customFetch(`${API_URL}/admin/users/${userId}/disable`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -142,7 +150,7 @@ export const toggleUserActive = async (token: string, userId: number) => {
 };
 
 export const deleteUser = async (token: string, userId: number) => {
-  const res = await fetch(`${API_URL}/admin/users/${userId}`, {
+  const res = await customFetch(`${API_URL}/admin/users/${userId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -151,14 +159,14 @@ export const deleteUser = async (token: string, userId: number) => {
 
 export const fetchAdminReports = async (token: string, params?: { status?: string; page?: number; limit?: number }) => {
   const query = new URLSearchParams(params as any).toString();
-  const res = await fetch(`${API_URL}/admin/reports?${query}`, {
+  const res = await customFetch(`${API_URL}/admin/reports?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
 };
 
 export const updateReport = async (token: string, reportId: number, data: { status: string; action?: string }) => {
-  const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
+  const res = await customFetch(`${API_URL}/admin/reports/${reportId}`, {
     method: "PATCH",
     headers: buildHeaders(token),
     body: JSON.stringify(data),
@@ -167,14 +175,14 @@ export const updateReport = async (token: string, reportId: number, data: { stat
 };
 
 export const fetchAdminStats = async (token: string) => {
-  const res = await fetch(`${API_URL}/admin/stats`, {
+  const res = await customFetch(`${API_URL}/admin/stats`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
 };
 
 export const submitReport = async (token: string, data: { reportedId: number; reason: string; details?: string }) => {
-  const res = await fetch(`${API_URL}/reports`, {
+  const res = await customFetch(`${API_URL}/reports`, {
     method: "POST",
     headers: buildHeaders(token),
     body: JSON.stringify(data),
@@ -185,14 +193,14 @@ export const submitReport = async (token: string, data: { reportedId: number; re
 // -------- CHAT --------
 export const fetchChatHistory = async (token: string, connectionId: number, cursor?: number) => {
   const url = cursor ? `${API_URL}/chat/${connectionId}?cursor=${cursor}` : `${API_URL}/chat/${connectionId}`;
-  const res = await fetch(url, {
+  const res = await customFetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.json();
 };
 
 export const markMessagesRead = async (token: string, connectionId: number) => {
-  const res = await fetch(`${API_URL}/chat/${connectionId}/read`, {
+  const res = await customFetch(`${API_URL}/chat/${connectionId}/read`, {
     method: "POST",
     headers: buildHeaders(token),
   });
@@ -200,7 +208,7 @@ export const markMessagesRead = async (token: string, connectionId: number) => {
 };
 
 export const fetchNotifications = async (token: string) => {
-  const res = await fetch(`${API_URL}/notifications`, {
+  const res = await customFetch(`${API_URL}/notifications`, {
     headers: buildHeaders(token),
   });
   if (!res.ok) return [];

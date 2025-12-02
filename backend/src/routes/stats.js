@@ -9,15 +9,10 @@ router.get("/", async (_req, res) => {
         // Get total active users
         const activeUsers = await prisma.user.count();
 
-        // Get successful matches (accepted connections) from this month
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        // Get successful matches (accepted connections) - All time
         const successfulMatches = await prisma.connection.count({
             where: {
                 status: "accepted",
-                createdAt: {
-                    gte: startOfMonth,
-                },
             },
         });
 
