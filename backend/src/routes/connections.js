@@ -62,8 +62,24 @@ router.post("/", authMiddleware, async (req, res) => {
 
 // Accept request
 router.patch("/:id/accept", authMiddleware, async (req, res) => {
+  const connectionId = parseInt(req.params.id);
+
+  // Verify existence and ownership
+  const existing = await prisma.connection.findUnique({
+    where: { id: connectionId },
+  });
+
+  if (!existing) {
+    return res.status(404).json({ error: "Connection not found" });
+  }
+
+  // Only the recipient can accept
+  if (existing.recipientId !== req.user.id) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
   const connection = await prisma.connection.update({
-    where: { id: parseInt(req.params.id) },
+    where: { id: connectionId },
     data: { status: "accepted" },
     include: {
       requester: { select: { id: true, username: true, profilePic: true, bio: true } },
@@ -88,8 +104,24 @@ router.patch("/:id/accept", authMiddleware, async (req, res) => {
 
 // Reject request
 router.patch("/:id/reject", authMiddleware, async (req, res) => {
+  const connectionId = parseInt(req.params.id);
+
+  // Verify existence and ownership
+  const existing = await prisma.connection.findUnique({
+    where: { id: connectionId },
+  });
+
+  if (!existing) {
+    return res.status(404).json({ error: "Connection not found" });
+  }
+
+  // Only the recipient can reject
+  if (existing.recipientId !== req.user.id) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
   const connection = await prisma.connection.update({
-    where: { id: parseInt(req.params.id) },
+    where: { id: connectionId },
     data: { status: "rejected" },
     include: {
       requester: { select: { id: true, username: true, profilePic: true, bio: true } },

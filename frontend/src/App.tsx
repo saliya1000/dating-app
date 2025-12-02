@@ -2,6 +2,7 @@ import { Routes, Route, NavLink, useNavigate, Navigate } from "react-router-dom"
 import { useEffect, useState, useContext, useRef } from "react";
 import type { ReactElement } from "react";
 import { io } from "socket.io-client";
+import { API_URL, SOCKET_URL } from "./config";
 import { fetchMe, fetchNotifications } from "./utils/api";
 import { DEFAULT_PROFILE_PIC_URL } from "./utils/constants";
 import { calculateProfileCompletion } from "./utils/profileCompletion";
@@ -36,7 +37,7 @@ function AuthenticatedRoute({ element, requireProfile = false }: { element: Reac
     // Fetch user and bio to check 100% completion
     Promise.all([
       fetchMe(token),
-      fetch("http://localhost:3000/api/users/me/bio", {
+      fetch(`${API_URL}/users/me/bio`, {
         headers: { Authorization: `Bearer ${token}` }
       }).then(res => res.json())
     ])
@@ -235,7 +236,7 @@ function App() {
     fetchMe(token).then((userData) => {
       if (userData && !userData.error) {
         setUser(userData);
-        const socket = io("http://localhost:3000");
+        const socket = io(SOCKET_URL);
         socket.emit("join", userData.id);
 
         socket.on("new notification", (notification) => {

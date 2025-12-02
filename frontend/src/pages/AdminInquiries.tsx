@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toggleUserBan } from "../utils/api";
+import { API_URL } from "../config";
 
 
 const AdminInquiries = () => {
@@ -15,7 +16,7 @@ const AdminInquiries = () => {
             return;
         }
 
-        fetch("http://localhost:3000/api/inquiries", {
+        fetch(`${API_URL}/inquiries`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => {

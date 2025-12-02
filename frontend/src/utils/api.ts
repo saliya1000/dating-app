@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000/api";
+import { API_URL } from "../config";
 
 const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const res = await fetch(input, init);

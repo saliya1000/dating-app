@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { loginUser } from "../utils/api";
+import { API_URL } from "../config";
 import { Link } from "react-router-dom";
 
 const Login = () => {
@@ -18,7 +19,7 @@ const Login = () => {
 
       // Fetch user details to check ban status immediately
       try {
-        const res = await fetch("http://localhost:3000/users/me", {
+        const res = await fetch(`${API_URL}/users/me`, {
           headers: { Authorization: `Bearer ${data.token}` }
         });
         const user = await res.json();

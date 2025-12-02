@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchMe } from "../utils/api";
+import { API_URL } from "../config";
 
 const Banned = () => {
     const [message, setMessage] = useState("");
@@ -32,7 +33,7 @@ const Banned = () => {
         setError("");
 
         try {
-            const res = await fetch("http://localhost:3000/api/inquiries", {
+            const res = await fetch(`${API_URL}/inquiries`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
