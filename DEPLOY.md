@@ -29,7 +29,7 @@
    ```
 
 4. **Verify**
-   - Access your application at `http://<your-vps-ip>`.
+   - Access your application at `http://<your-vps-ip>:8081`.
    - The backend API is available at `http://<your-vps-ip>:3001`.
 
 ## Updating the Application

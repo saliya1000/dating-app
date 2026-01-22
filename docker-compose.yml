@@ -11,6 +11,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-datingapp}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
     networks:
       - app-network
 
@@ -23,7 +25,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-datingapp}
       PORT: 3001
-      CLIENT_URL: http://localhost:80
+      CLIENT_URL: http://localhost:8081
       JWT_SECRET: ${JWT_SECRET:-supersecretkey}
     depends_on:
       - postgres
@@ -35,7 +37,7 @@ services:
     container_name: dating-app-frontend
     restart: always
     ports:
-      - "80:80"
+      - "8081:80"
     environment:
       VITE_API_URL: http://localhost:3001/api
     depends_on:
