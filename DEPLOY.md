@@ -30,7 +30,7 @@
 
 4. **Verify**
    - Access your application at `http://<your-vps-ip>`.
-   - The backend API is available at `http://<your-vps-ip>:3000`.
+   - The backend API is available at `http://<your-vps-ip>:3001`.
 
 ## Updating the Application
 To deploy changes, pull the latest code and restart the containers:

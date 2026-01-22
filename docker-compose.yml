@@ -19,10 +19,10 @@ services:
     container_name: dating-app-backend
     restart: always
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-datingapp}
-      PORT: 3000
+      PORT: 3001
       CLIENT_URL: http://localhost:80
       JWT_SECRET: ${JWT_SECRET:-supersecretkey}
     depends_on:
@@ -37,7 +37,7 @@ services:
     ports:
       - "80:80"
     environment:
-      VITE_API_URL: http://localhost:3000/api
+      VITE_API_URL: http://localhost:3001/api
     depends_on:
       - backend
     networks:
