@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dating-app-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-datingapp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    container_name: dating-app-backend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-datingapp}
+      PORT: 3000
+      CLIENT_URL: http://localhost:80
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    container_name: dating-app-frontend
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+
+networks:
+  app-network:
+    driver: bridge

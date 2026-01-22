@@ -20,11 +20,14 @@ const prisma = new PrismaClient();
 dotenv.config();
 const app = express();
 const server = http.createServer(app);
+const PORT = process.env.PORT || 3000;
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      // Allow requests from localhost or 127.0.0.1 on port 5173
-      if (!origin || origin === "http://localhost:5173" || origin === "http://127.0.0.1:5173") {
+      // Allow requests from localhost or defined CLIENT_URL
+      if (!origin || origin === CLIENT_URL || origin === "http://localhost:5173" || origin === "http://127.0.0.1:5173") {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -38,10 +41,10 @@ app.set("io", io);
 const onlineUsers = new Map();
 
 app.use(express.json({ limit: "50mb" }));
-app.use(cors({ 
+app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests from localhost or 127.0.0.1 on port 5173
-    if (!origin || origin === "http://localhost:5173" || origin === "http://127.0.0.1:5173") {
+    // Allow requests from localhost or defined CLIENT_URL
+    if (!origin || origin === CLIENT_URL || origin === "http://localhost:5173" || origin === "http://127.0.0.1:5173") {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
@@ -173,4 +176,4 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(3000, "0.0.0.0", () => console.log("Server running on http://localhost:3000"));
+server.listen(PORT, "0.0.0.0", () => console.log(`Server running on http://localhost:${PORT}`));
