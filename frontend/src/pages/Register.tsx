@@ -34,7 +34,7 @@ const Register = () => {
       if (errorMessage.includes("database") || errorMessage.includes("Database")) {
         setError("Database connection error. Please ensure PostgreSQL is running.");
       } else if (errorMessage.includes("Network") || errorMessage.includes("fetch")) {
-        setError("Unable to connect to server. Please check if the backend is running on port 3000.");
+        setError("Unable to connect to server. Please check if the backend is running.");
       } else {
         setError(errorMessage || "Registration failed. Please try again.");
       }

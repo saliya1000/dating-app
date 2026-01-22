@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { loginUser } from "../utils/api";
+import { loginUser, fetchMe } from "../utils/api";
 import { Link } from "react-router-dom";
 
 const Login = () => {
@@ -12,7 +12,7 @@ const Login = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     try {
       const data = await loginUser(email, password);
       if (data.token) {
@@ -20,14 +20,10 @@ const Login = () => {
 
         // Fetch user details to check ban status immediately
         try {
-          const res = await fetch("http://localhost:3000/api/users/me", {
-            headers: { Authorization: `Bearer ${data.token}` }
-          });
-          const user = await res.json();
-
-          if (user.isBanned) {
+          const res = await fetchMe(data.token);
+          if (res.isBanned) {
             window.location.href = "/banned";
-          } else if (user.role === "ADMIN") {
+          } else if (res.role === "ADMIN") {
             window.location.href = "/";
           } else {
             window.location.href = "/profile";
@@ -45,7 +41,7 @@ const Login = () => {
       if (errorMessage.includes("database") || errorMessage.includes("Database")) {
         setError("Database connection error. Please ensure PostgreSQL is running.");
       } else if (errorMessage.includes("Network") || errorMessage.includes("fetch")) {
-        setError("Unable to connect to server. Please check if the backend is running on port 3000.");
+        setError("Unable to connect to server. Please check if the backend is running.");
       } else {
         setError(errorMessage || "Login failed. Please try again.");
       }
