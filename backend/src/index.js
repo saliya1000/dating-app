@@ -26,14 +26,11 @@ const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      // Allow requests from localhost or defined CLIENT_URL
-      if (!origin || origin === CLIENT_URL || origin === "http://localhost:5173" || origin === "http://127.0.0.1:5173") {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
+      console.log("Socket origin:", origin);
+      callback(null, true);
     },
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 app.set("io", io);
@@ -43,12 +40,8 @@ const onlineUsers = new Map();
 app.use(express.json({ limit: "50mb" }));
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests from localhost or defined CLIENT_URL
-    if (!origin || origin === CLIENT_URL || origin === "http://localhost:5173" || origin === "http://127.0.0.1:5173") {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
+    console.log("Express origin:", origin);
+    callback(null, true);
   },
   credentials: true
 }));
