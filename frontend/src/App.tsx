@@ -385,6 +385,9 @@ function App() {
             <AdminRoute element={<AdminInquiries />} />
           } />
         </Routes>
+        <footer className="api-version fw-bold text-center mt-4">
+          <small className="text-muted">v1.0.1</small>
+        </footer>
       </div>
     </NotifContext.Provider>
   );
